@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Django
+db.sqlite3
+media/
+static_cdn/
+
+# IA Models (Arquivos grandes que não devem ir para o Git comum)
+models/*.gguf
+models/mmproj*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
