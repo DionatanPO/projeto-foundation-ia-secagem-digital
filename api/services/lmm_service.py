@@ -23,14 +23,14 @@ class LMMService:
         """
         if cls._instance is None:
             cls._instance = super(LMMService, cls).__new__(cls)
-            cls._instance._initialize_model()
+            cls._instance._initialize_model(use_gpu=False)
         return cls._instance
 
     @property
     def model(self):
         return self._model
 
-    def _initialize_model(self, model_path=None, mmproj_path=None):
+    def _initialize_model(self, model_path=None, mmproj_path=None, use_gpu=False):
         """
         Carrega o modelo .gguf na memória RAM (CPU ou GPU).
         """
@@ -44,6 +44,12 @@ class LMMService:
 
         # Resolve sempre para caminho absoluto
         model_path = os.path.abspath(model_path)
+        
+        # OTIMIZAÇÃO: Se o modelo já é o mesmo, não recarrega
+        if self._model is not None and getattr(self, '_current_model_path', None) == model_path:
+            print(f"Modelo {os.path.basename(model_path)} já carregado. Pulando inicialização.")
+            return
+
         print(f"Carregando modelo: {model_path}")
 
         if not os.path.exists(model_path):
@@ -54,6 +60,8 @@ class LMMService:
         # Limpa o modelo anterior da memória
         if self._model is not None:
             try:
+                if hasattr(self._model, 'close'):
+                    self._model.close()
                 del self._model
             except Exception as e:
                 print(f"Aviso: Falha ao liberar modelo anterior: {e}")
@@ -70,7 +78,7 @@ class LMMService:
                 chat_handler = Llava15ChatHandler(clip_model_path=mmproj_path)
 
             n_threads = int(os.getenv('N_THREADS', 4))
-            n_gpu_layers = int(os.getenv('N_GPU_LAYERS', 0))
+            n_gpu_layers = -1 if use_gpu else 0
 
             self._model = Llama(
                 model_path=model_path,
@@ -105,7 +113,7 @@ class LMMService:
             return os.path.basename(self._current_model_path)
         return "Nenhum modelo carregado"
 
-    def switch_model(self, model_name):
+    def switch_model(self, model_name, use_gpu=False):
         """
         Troca o modelo atual por um novo.
         """
@@ -119,13 +127,13 @@ class LMMService:
                 elif "E4B" in model_name:
                     mmproj_path = os.path.join(settings.BASE_DIR, 'models', 'mmproj-gemma-4-E4B-it-BF16.gguf')
 
-            self._initialize_model(model_path=model_path, mmproj_path=mmproj_path)
+            self._initialize_model(model_path=model_path, mmproj_path=mmproj_path, use_gpu=use_gpu)
             return self._model is not None
         except Exception as e:
             print(f"Erro ao trocar de modelo: {e}")
             return False
 
-    def generate_stream(self, prompt, max_tokens=512, temperature=0.7, image_base64=None, use_think=False, system_prompt=None, history=None):
+    def generate_stream(self, prompt, temperature=0.7, image_base64=None, system_prompt=None, history=None):
         """
         Gerador que retorna a resposta do modelo token por token (Streaming).
         """
@@ -142,8 +150,6 @@ class LMMService:
                 ]
 
             final_system_prompt = system_prompt if system_prompt else "Você é um assistente virtual inteligente e prestativo. Responda em Português."
-            if use_think:
-                final_system_prompt += " Por favor, raciocine passo-a-passo antes de responder, colocando seu processo de pensamento dentro de tags <think> e </think>."
 
             messages = [{"role": "system", "content": final_system_prompt}]
 
@@ -154,9 +160,8 @@ class LMMService:
 
             stream = self._model.create_chat_completion(
                 messages=messages,
-                max_tokens=max_tokens,
+                max_tokens=None,
                 temperature=temperature,
-                stop=["USER:", "User:", "<end_of_turn>", "</s>"],
                 stream=True
             )
 
@@ -169,7 +174,7 @@ class LMMService:
         except Exception as e:
             yield f"Erro no streaming: {str(e)}"
 
-    def generate_response(self, prompt, max_tokens=512, temperature=0.7, image_base64=None, use_think=False, system_prompt=None, history=None):
+    def generate_response(self, prompt, temperature=0.7, image_base64=None, system_prompt=None, history=None):
         """
         Envia o prompt formatado para o modelo e retorna a resposta gerada.
         """
@@ -185,8 +190,6 @@ class LMMService:
                 ]
 
             final_system_prompt = system_prompt if system_prompt else "Você é um assistente virtual inteligente e prestativo. Responda em Português."
-            if use_think:
-                final_system_prompt += " Por favor, raciocine passo-a-passo antes de responder, colocando seu processo de pensamento dentro de tags <think> e </think>."
 
             messages = [{"role": "system", "content": final_system_prompt}]
 
@@ -197,9 +200,8 @@ class LMMService:
 
             output = self._model.create_chat_completion(
                 messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                stop=["USER:", "User:", "<end_of_turn>", "</s>"]
+                max_tokens=None,
+                temperature=temperature
             )
 
             response_text = output['choices'][0]['message']['content'].strip()

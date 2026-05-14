@@ -39,7 +39,25 @@ Antes de começar, você precisará ter instalado:
    source venv/bin/activate  # No Windows: venv\Scripts\activate
    ```
 
-3. **Instale as dependências:**
+3. **Instale as dependências da IA (Escolha o comando correto para o seu hardware):**
+
+   O código da aplicação é universal e suporta qualquer placa de vídeo ou processador. A única diferença é o método de instalação da biblioteca `llama-cpp-python`:
+
+   **Opção A: Aceleração Universal via Vulkan (Recomendado para AMD, NVIDIA e Intel Arc)**
+   ```bash
+   set CMAKE_ARGS="-DGGML_VULKAN=on"
+   pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
+   pip install -r requirements.txt
+   ```
+
+   **Opção B: Máxima Performance NVIDIA (CUDA)**
+   ```bash
+   set CMAKE_ARGS="-DGGML_CUDA=on"
+   pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
+   pip install -r requirements.txt
+   ```
+
+   **Opção C: Nuvem ou CPU Pura (Máquinas sem placa de vídeo)**
    ```bash
    pip install -r requirements.txt
    ```

@@ -8,65 +8,75 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" id="hljs-theme">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        /* ── TEMA ESCURO ── */
+        /* ── MATERIAL DESIGN 3 - CONFIGURAÇÕES DE TEMA ── */
         :root {
-            --bg: #1a1b1e;
-            --surface: #22242a;
-            --surface-2: #2a2d35;
-            --surface-3: #32363f;
-            --border: rgba(255, 255, 255, 0.08);
-            --border-strong: rgba(255, 255, 255, 0.15);
-            --text: #e8e9ea;
-            --text-muted: #9299a6;
-            --text-dim: #5c6370;
-            --accent: #c8f080;
-            --accent-2: #a3d95a;
-            --accent-bg: rgba(200, 240, 128, 0.07);
-            --accent-glow: rgba(163, 217, 90, 0.15);
-            --danger: #ff6b6b;
-            --font: 'DM Sans', sans-serif;
-            --mono: 'DM Mono', monospace;
-            --radius: 12px;
-            --radius-sm: 8px;
-            --sidebar-w: 260px;
-            --shadow: 0 2px 12px rgba(0,0,0,0.35);
-            --msg-user-bg: #252e1a;
+            --font: 'Outfit', sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+            --radius: 24px;
+            --radius-sm: 16px;
+            --sidebar-w: 280px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ── TEMA ESCURO (Dark Mode) ── */
+        [data-theme="dark"] {
+            /* Fundo confortável (Discord Style) */
+            --bg: #313338;
+            --surface: #2b2d31;
+            --surface-2: #1e1f22;
+            --surface-3: #232428;
+            --surface-variant: #404249;
+            
+            /* Cores Primárias Originais do Projeto (Verde Secagem Digital) */
+            --primary: #b1d18a;
+            --on-primary: #1b3700;
+            --primary-container: #2d5124;
+            --on-primary-container: #cdeda3;
+            
+            --text: #dbdee1;
+            --text-muted: #b5bac1;
+            --text-dim: #949ba4;
+            --border: rgba(255, 255, 255, 0.06);
+            --shadow: 0 8px 32px rgba(0,0,0,0.4);
+            
+            --msg-user-bg: var(--primary-container);
             --msg-ai-bg: var(--surface-2);
         }
 
-        /* ── TEMA CLARO (segue o sistema) ── */
-        @media (prefers-color-scheme: light) {
-            :root {
-                --bg: #f2f3ee;
-                --surface: #ffffff;
-                --surface-2: #eceeed;
-                --surface-3: #e2e4e0;
-                --border: rgba(0, 0, 0, 0.08);
-                --border-strong: rgba(0, 0, 0, 0.15);
-                --text: #1c1f1a;
-                --text-muted: #5a6055;
-                --text-dim: #9aa095;
-                --accent: #3d6e18;
-                --accent-2: #2e5410;
-                --accent-bg: rgba(61, 110, 24, 0.09);
-                --accent-glow: rgba(61, 110, 24, 0.12);
-                --danger: #c0392b;
-                --shadow: 0 2px 12px rgba(0,0,0,0.08);
-                --msg-user-bg: #dff0c4;
-                --msg-ai-bg: #ffffff;
-            }
+        /* ── TEMA CLARO (Light Mode) ── */
+        [data-theme="light"] {
+            --bg: #f9faf0;
+            --surface: #ffffff;
+            --surface-2: #f0f2e8;
+            --surface-3: #e6e9de;
+            --surface-variant: #e1e4d5;
+
+            --primary: #2d5124;
+            --on-primary: #ffffff;
+            --primary-container: #cdeda3;
+            --on-primary-container: #0f2000;
+
+            --text: #1a1c18;
+            --text-muted: #44483d;
+            --text-dim: #75796c;
+            --border: rgba(0, 0, 0, 0.08);
+            --shadow: 0 8px 32px rgba(0,0,0,0.06);
+
+            --msg-user-bg: var(--primary-container);
+            --msg-ai-bg: var(--surface);
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
         }
 
         body {
@@ -177,14 +187,14 @@
         }
 
         .nav-item.active {
-            background: var(--accent-bg);
-            color: var(--accent);
-            border: 1px solid rgba(212, 245, 160, 0.12);
+            background: var(--primary-container);
+            color: var(--on-primary-container);
+            font-weight: 500;
         }
 
         .nav-item svg {
-            width: 16px;
-            height: 16px;
+            width: 20px;
+            height: 20px;
             flex-shrink: 0;
         }
 
@@ -216,6 +226,98 @@
             letter-spacing: 0.04em;
             text-transform: uppercase;
             color: var(--text-dim);
+        }
+
+        .model-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .model-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .model-item:hover {
+            background: var(--surface-3);
+            border-color: var(--text-dim);
+        }
+
+        .model-item.active {
+            background: var(--primary-container);
+            border-color: var(--primary);
+            color: var(--on-primary-container);
+        }
+
+        .model-item .model-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--surface-3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--text-muted);
+        }
+
+        .model-item.active .model-icon {
+            background: var(--primary);
+            color: var(--on-primary);
+        }
+
+        .model-item .model-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .model-item .model-name {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .model-item .model-status {
+            font-size: 10px;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .model-item.switching {
+            opacity: 0.6;
+            pointer-events: none;
+            cursor: wait;
+        }
+
+        .model-item.switching::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 2px;
+            width: 100%;
+            background: var(--primary);
+            animation: model-loading 1.5s infinite linear;
+        }
+
+        @keyframes model-loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         .setting-value {
@@ -513,12 +615,13 @@
 
         .message-wrap.user .msg-bubble {
             background: var(--msg-user-bg);
-            border: 1px solid var(--border);
+            color: var(--on-primary-container);
             border-radius: var(--radius);
-            border-top-right-radius: 3px;
-            padding: 10px 14px;
+            border-bottom-right-radius: 4px;
+            padding: 12px 18px;
             display: inline-block;
-            max-width: 80%;
+            max-width: 85%;
+            box-shadow: var(--shadow);
         }
 
         .message-wrap.user .msg-body {
@@ -529,6 +632,35 @@
 
         .message-wrap.user .msg-meta {
             justify-content: flex-end;
+        }
+
+        /* Animação de Carregamento (Typing Indicator) */
+        .loader-wrap {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 12px 18px;
+            background: var(--surface-2);
+            border-radius: var(--radius);
+            border-bottom-left-radius: 4px;
+            width: fit-content;
+            box-shadow: var(--shadow);
+        }
+
+        .loader-wrap span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-dim);
+            animation: pulse-dot 1.4s infinite ease-in-out both;
+        }
+
+        .loader-wrap span:nth-child(1) { animation-delay: -0.32s; }
+        .loader-wrap span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes pulse-dot {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1.2); opacity: 1; background: var(--primary); }
         }
 
         /* Bot markdown */
@@ -551,12 +683,12 @@
         }
 
         .msg-bubble pre {
-            background: var(--surface-2);
-            border: 1px solid var(--border);
+            background: #1e1e1e;
             border-radius: var(--radius-sm);
-            padding: 14px 16px;
+            padding: 16px;
             overflow-x: auto;
             margin: 12px 0;
+            color: #d4d4d4;
         }
 
         .msg-bubble code {
@@ -1027,6 +1159,116 @@
                 display: none;
             }
         }
+
+        /* --- MODAL SETTINGS --- */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-backdrop.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            width: 90%;
+            max-width: 500px;
+            border-radius: 28px;
+            padding: 32px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal-backdrop.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .close-modal {
+            background: var(--surface-2);
+            border: none;
+            color: var(--text);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .close-modal:hover {
+            background: var(--surface-3);
+        }
+
+        .settings-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Sidebar Footer Gear */
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            margin-top: auto;
+        }
+
+        .btn-settings {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-settings:hover {
+            background: var(--surface-3);
+            border-color: var(--text-dim);
+        }
+
+        .btn-settings svg {
+            width: 20px;
+            height: 20px;
+            color: var(--text-muted);
+        }
     </style>
 </head>
 
@@ -1062,59 +1304,14 @@
             </div>
         </div>
 
-        <div class="sidebar-settings">
-            <span class="nav-section-label" style="padding: 0; margin: 0 0 4px;">Parâmetros</span>
-
-            <div class="setting-row">
-                <div class="setting-label">
-                    <span>Modelo</span>
-                </div>
-                <select id="modelSelector" class="sys-input" style="height: auto;" onchange="changeModel(this.value)">
-                    <option value="">Carregando...</option>
-                </select>
-            </div>
-
-            <div class="setting-row">
-                <div class="setting-label">
-                    <span>Criatividade</span>
-                    <span class="setting-value" id="tempDisplay">0.7</span>
-                </div>
-                <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7"
-                    oninput="document.getElementById('tempDisplay').textContent = (+this.value).toFixed(1)">
-            </div>
-
-            <div class="setting-row">
-                <div class="setting-label">
-                    <span>Tokens máx.</span>
-                </div>
-                <input type="number" id="maxTokens" value="2048" min="100" max="8192">
-            </div>
-
-            <div class="setting-row">
-                <div class="setting-label">
-                    <span>Diretriz</span>
-                </div>
-                <textarea class="sys-input" id="systemPrompt"
-                    placeholder="Ex: Atue como especialista em agronomia..."></textarea>
-            </div>
-
-            <div class="toggle-row">
-                <span class="toggle-label">Raciocínio (Think)</span>
-                <label class="toggle" style="position:relative">
-                    <input type="checkbox" id="useThink">
-                    <div class="toggle-track"></div>
-                    <div class="toggle-thumb"></div>
-                </label>
-            </div>
-
-            <div class="toggle-row">
-                <span class="toggle-label">Pesquisa Web (Agente)</span>
-                <label class="toggle" style="position:relative">
-                    <input type="checkbox" id="useWebSearch">
-                    <div class="toggle-track" style="background: rgba(163, 224, 91, 0.05)"></div>
-                    <div class="toggle-thumb"></div>
-                </label>
-            </div>
+        <div class="sidebar-footer">
+            <button class="btn-settings" onclick="toggleModal(true)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                Configurações
+            </button>
         </div>
     </aside>
 
@@ -1206,19 +1403,126 @@
 
     </main>
 
+    <!-- Settings Modal -->
+    <div class="modal-backdrop" id="settingsModal" onclick="if(event.target === this) toggleModal(false)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Configurações</h2>
+                <button class="close-modal" onclick="toggleModal(false)">✕</button>
+            </div>
+            
+            <div class="settings-grid">
+                <!-- Aparência -->
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span class="nav-section-label" style="padding: 0; margin: 0;">Tema do Sistema</span>
+                    </div>
+                    <button class="sys-input" id="themeToggle" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); width: 100%; margin-top: 8px;">
+                        <span id="themeLabel">Modo Escuro</span>
+                        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- Hardware -->
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span class="nav-section-label" style="padding: 0; margin: 0;">Processamento</span>
+                    </div>
+                    <select id="hardwareSelect" class="sys-input" style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; color: var(--text); width: 100%; margin-top: 8px; font-family: var(--font); cursor: pointer;">
+                        <option value="cpu" selected>CPU (Padrão, mais lento)</option>
+                        <option value="gpu">GPU (Rápido, exige VRAM)</option>
+                    </select>
+                </div>
+
+                <!-- Modelos -->
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span class="nav-section-label" style="padding: 0; margin: 0;">Modelo de IA</span>
+                    </div>
+                    <div id="modelList" class="model-list" style="margin-top: 8px;">
+                        <!-- Gerado via JS -->
+                    </div>
+                </div>
+
+                <!-- Parâmetros -->
+                <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+                    <div class="setting-row">
+                        <div class="setting-label">
+                            <span class="nav-section-label" style="padding: 0; margin: 0;">Criatividade</span>
+                            <span id="tempDisplay" style="font-family: var(--mono); color: var(--primary); font-weight: 600;">0.7</span>
+                        </div>
+                        <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7" style="width: 100%; margin-top: 8px;"
+                            oninput="document.getElementById('tempDisplay').textContent = (+this.value).toFixed(1)">
+                    </div>
+                </div>
+
+
+                <!-- Diretriz -->
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span class="nav-section-label" style="padding: 0; margin: 0;">Diretriz do Sistema</span>
+                    </div>
+                    <textarea id="systemPrompt" class="sys-input" style="height: 100px; resize: none; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; color: var(--text); width: 100%; margin-top: 8px; font-family: var(--font);"
+                        placeholder="Ex: Você é um agrônomo especialista..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // ── Troca automática do tema do highlight.js com o sistema ──
+        // ── Gestão de Tema (Manual + Sistema) ──
         (function () {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeLabel = document.getElementById('themeLabel');
+            const themeIcon = document.getElementById('themeIcon');
             const hljsTheme = document.getElementById('hljs-theme');
-            const dark = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css';
-            const light = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css';
-            function applyHljsTheme(isDark) {
-                hljsTheme.href = isDark ? dark : light;
+            
+            const darkStyles = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css';
+            const lightStyles = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css';
+
+            function setTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+                
+                if (theme === 'dark') {
+                    themeLabel.innerText = 'Modo Escuro';
+                    themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+                    hljsTheme.href = darkStyles;
+                } else {
+                    themeLabel.innerText = 'Modo Claro';
+                    themeIcon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+                    hljsTheme.href = lightStyles;
+                }
             }
-            const mq = window.matchMedia('(prefers-color-scheme: dark)');
-            applyHljsTheme(mq.matches);
-            mq.addEventListener('change', e => applyHljsTheme(e.matches));
+
+            // Inicialização
+            const savedTheme = localStorage.getItem('theme');
+            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            setTheme(savedTheme || systemTheme);
+
+            themeToggle.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme');
+                setTheme(current === 'dark' ? 'light' : 'dark');
+            });
+            
+            // Ouvir mudança do sistema se não houver preferência salva
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                if (!localStorage.getItem('theme')) {
+                    setTheme(e.matches ? 'dark' : 'light');
+                }
+            });
         })();
+
+        function toggleModal(show) {
+            const modal = document.getElementById('settingsModal');
+            if (show) {
+                modal.classList.add('show');
+            } else {
+                modal.classList.remove('show');
+            }
+        }
 
         const chatArea = document.getElementById('chatArea');
         const promptInput = document.getElementById('promptInput');
@@ -1424,11 +1728,11 @@
             if ((!text && !currentImageBase64) || isWaiting) return;
             dismissWelcome();
 
-            const maxTokens = parseInt(document.getElementById('maxTokens').value) || 2048;
-            const temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
-            const useThink = document.getElementById('useThink').checked;
-            const useWebSearch = document.getElementById('useWebSearch').checked;
-            const systemPrompt = document.getElementById('systemPrompt').value;
+            const temperature = parseFloat(document.getElementById('temperature')?.value) || 0.7;
+            
+            const sysPromptEl = document.getElementById('systemPrompt');
+            const systemPrompt = sysPromptEl ? sysPromptEl.value : null;
+            
             const payloadImage = currentImageBase64;
 
             // Adiciona ao histórico local
@@ -1449,13 +1753,10 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        prompt: text || "O que tem nesta imagem?",
-                        max_tokens: maxTokens,
-                        temperature,
+                        prompt: text || (payloadImage ? "Analise esta imagem." : ""),
+                        temperature: temperature,
                         image_base64: payloadImage,
-                        use_think: useThink,
-                        use_web_search: useWebSearch,
-                        history: chatHistory.slice(0, -1), // Envia tudo exceto a última que acabamos de adicionar
+                        history: chatHistory.slice(0, -1),
                         system_prompt: systemPrompt
                     })
                 });
@@ -1507,64 +1808,86 @@
 
         // --- Model Management ---
         async function loadModels() {
-            const selector = document.getElementById('modelSelector');
             try {
-                const res = await fetch('/api/models/');
-                if (res.ok) {
-                    const data = await res.json();
-                    selector.innerHTML = '';
-                    data.models.forEach(model => {
-                        const opt = document.createElement('option');
-                        opt.value = model;
-                        opt.textContent = model.split('.')[0].replace(/-/g, ' ');
-                        if (model === data.current_model) opt.selected = true;
-                        selector.appendChild(opt);
-                    });
+                const response = await fetch('/api/models/');
+                const data = await response.json();
+                const modelList = document.getElementById('modelList');
+                if (!modelList) return;
+                modelList.innerHTML = '';
+                
+                if (!data.models || data.models.length === 0) {
+                    modelList.innerHTML = '<div style="font-size: 12px; color: var(--text-dim); padding: 10px;">Nenhum modelo .gguf encontrado em /models</div>';
+                    return;
                 }
+
+                data.models.forEach(modelName => {
+                    const isActive = modelName === data.current_model;
+                    const item = document.createElement('div');
+                    item.className = `model-item ${isActive ? 'active' : ''}`;
+                    item.onclick = () => {
+                        if (!item.classList.contains('active') && !item.classList.contains('switching')) {
+                            changeModel(modelName, item);
+                        }
+                    };
+                    
+                    item.innerHTML = `
+                        <div class="model-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"></path>
+                                <path d="M12 6v6l4 2"></path>
+                            </svg>
+                        </div>
+                        <div class="model-info">
+                            <span class="model-name" title="${modelName}">${modelName}</span>
+                            <span class="model-status">${isActive ? 'Em execução' : 'Disponível'}</span>
+                        </div>
+                        ${isActive ? `
+                        <div style="margin-left: auto;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                        ` : ''}
+                    `;
+                    modelList.appendChild(item);
+                });
             } catch (err) {
                 console.error("Erro ao carregar modelos:", err);
-                selector.innerHTML = '<option value="">Erro ao carregar</option>';
             }
         }
 
-        async function changeModel(modelName) {
-            if (!modelName) return;
+        async function changeModel(modelName, element) {
+            if (isWaiting) return;
             
-            const selector = document.getElementById('modelSelector');
-            const originalValue = selector.value;
-            
-            // UI feedback
-            selector.disabled = true;
-            const statusText = document.querySelector('.topbar-title');
-            const originalStatus = statusText.innerHTML;
-            statusText.innerHTML = `<span style="color: var(--accent)">Carregando modelo...</span>`;
+            // UI Feedback
+            const allItems = document.querySelectorAll('.model-item');
+            allItems.forEach(i => i.classList.remove('active', 'switching'));
+            element.classList.add('switching');
             
             try {
-                const res = await fetch('/api/switch-model/', {
+                const useGpu = document.getElementById('hardwareSelect').value === 'gpu';
+                const response = await fetch('/api/switch-model/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model_name: modelName })
+                    body: JSON.stringify({ model_name: modelName, use_gpu: useGpu })
                 });
                 
-                if (res.ok) {
-                    statusText.innerHTML = `Chat · ${modelName.split('.')[0]}`;
-                    setTimeout(() => statusText.innerHTML = `Chat · Modelo local`, 3000);
+                if (response.ok) {
+                    await loadModels(); // Atualiza a lista
+                    updateRAM(); // Atualiza uso de memória
                 } else {
-                    alert("Erro ao trocar de modelo.");
-                    selector.value = originalValue;
+                    alert("Erro ao trocar o modelo.");
+                    loadModels();
                 }
             } catch (err) {
-                console.error(err);
-                alert("Erro de conexão ao trocar de modelo.");
-                selector.value = originalValue;
-            } finally {
-                selector.disabled = false;
-                statusText.innerHTML = `Chat · Modelo local`;
-                updateRAM();
+                console.error("Erro:", err);
+                loadModels();
             }
         }
 
         loadModels();
+        updateRAM();
+        setInterval(updateRAM, 5000);
     </script>
 </body>
 

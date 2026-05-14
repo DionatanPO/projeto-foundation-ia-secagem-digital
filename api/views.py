@@ -4,7 +4,7 @@ from rest_framework import status
 from django.http import StreamingHttpResponse
 import psutil
 import os
-from .serializers import ChatRequestSerializer, ChatResponseSerializer
+from .serializers import ChatRequestSerializer, ChatResponseSerializer, ModelSwitchSerializer
 from .services.lmm_service import LMMService
 
 # Instancia o serviço (O modelo será carregado na primeira vez que esta view for importada)
@@ -42,19 +42,15 @@ def chat_inference(request):
 
     if serializer.is_valid():
         prompt = serializer.validated_data['prompt']
-        max_tokens = serializer.validated_data.get('max_tokens', 512)
         temperature = serializer.validated_data.get('temperature', 0.7)
         image_base64 = serializer.validated_data.get('image_base64', None)
-        use_think = serializer.validated_data.get('use_think', False)
         system_prompt = serializer.validated_data.get('system_prompt', None)
         history = serializer.validated_data.get('history', [])
 
         answer = lmm_service.generate_response(
             prompt=prompt,
-            max_tokens=max_tokens,
             temperature=temperature,
             image_base64=image_base64,
-            use_think=use_think,
             system_prompt=system_prompt,
             history=history
         )
@@ -71,20 +67,16 @@ def chat_stream(request):
     serializer = ChatRequestSerializer(data=request.data)
     if serializer.is_valid():
         prompt = serializer.validated_data['prompt']
-        max_tokens = serializer.validated_data.get('max_tokens', 512)
         temperature = serializer.validated_data.get('temperature', 0.7)
         image_base64 = serializer.validated_data.get('image_base64', None)
-        use_think = serializer.validated_data.get('use_think', False)
         system_prompt = serializer.validated_data.get('system_prompt', None)
         history = serializer.validated_data.get('history', [])
 
         def stream_generator():
             for chunk in lmm_service.generate_stream(
                 prompt=prompt,
-                max_tokens=max_tokens,
                 temperature=temperature,
                 image_base64=image_base64,
-                use_think=use_think,
                 system_prompt=system_prompt,
                 history=history
             ):
@@ -111,12 +103,12 @@ def switch_model(request):
     """
     Troca o modelo carregado.
     """
-    model_name = request.data.get('model_name')
-    if not model_name:
-        return Response({"error": "Nome do modelo não fornecido"}, status=status.HTTP_400_BAD_REQUEST)
-
-    success = lmm_service.switch_model(model_name)
-    if success:
-        return Response({"message": f"Modelo {model_name} carregado com sucesso"}, status=status.HTTP_200_OK)
-    else:
-        return Response({"error": f"Falha ao carregar o modelo {model_name}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    serializer = ModelSwitchSerializer(data=request.data)
+    if serializer.is_valid():
+        model_name = serializer.validated_data['model_name']
+        use_gpu = serializer.validated_data.get('use_gpu', False)
+        success = lmm_service.switch_model(model_name, use_gpu=use_gpu)
+        if success:
+            return Response({"status": "Model switched", "model": model_name})
+        return Response({"error": "Failed to load model"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
