@@ -26,12 +26,12 @@
 
         /* ── TEMA ESCURO (Dark Mode) ── */
         [data-theme="dark"] {
-            /* Fundo confortável (Discord Style) */
-            --bg: #313338;
-            --surface: #2b2d31;
-            --surface-2: #1e1f22;
-            --surface-3: #232428;
-            --surface-variant: #404249;
+            /* Fundo Google Escuro (Lighter Dark Theme) */
+            --bg: #202124;
+            --surface: #28292A;
+            --surface-2: #303134;
+            --surface-3: #3C4043;
+            --surface-variant: #5F6368;
             
             /* Cores Primárias Originais do Projeto (Verde Secagem Digital) */
             --primary: #b1d18a;
@@ -39,10 +39,10 @@
             --primary-container: #2d5124;
             --on-primary-container: #cdeda3;
             
-            --text: #dbdee1;
-            --text-muted: #b5bac1;
-            --text-dim: #949ba4;
-            --border: rgba(255, 255, 255, 0.06);
+            --text: #e3e3e3;
+            --text-muted: #c4c7c5;
+            --text-dim: #8e918f;
+            --border: rgba(255, 255, 255, 0.1);
             --shadow: 0 8px 32px rgba(0,0,0,0.4);
             
             --msg-user-bg: var(--primary-container);
@@ -461,6 +461,37 @@
             color: var(--text-muted);
         }
 
+          /* Perf Badge outside bubble */
+        .perf-badge {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            padding: 6px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            font-size: 11px;
+            font-family: var(--mono);
+            color: var(--text-dim);
+            opacity: 0;
+            transform: translateY(4px);
+            animation: msg-in 0.4s ease forwards;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .perf-badge b {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .perf-sep {
+            width: 1px;
+            height: 12px;
+            background: var(--border-strong);
+            opacity: 0.3;
+        }
+
         .topbar-right {
             display: flex;
             align-items: center;
@@ -607,6 +638,34 @@
             color: var(--text-dim);
         }
 
+        .copy-btn {
+            margin-left: auto;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-dim);
+            padding: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            transition: var(--transition);
+            opacity: 0.5;
+        }
+
+        .copy-btn:hover {
+            opacity: 1;
+            background: var(--surface-3);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .copy-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
         .msg-bubble {
             font-size: 14px;
             line-height: 1.7;
@@ -740,23 +799,25 @@
             border-bottom: 1px solid rgba(212, 245, 160, 0.3);
         }
 
-        /* Think block */
+        /* Think block (Thinking Process Card) */
         .think-block {
-            margin-bottom: 14px;
-            border-radius: var(--radius-sm);
+            margin: 12px 0;
+            border-radius: 12px;
             overflow: hidden;
             border: 1px solid var(--border);
+            background: var(--surface);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .think-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 8px 12px;
+            padding: 10px 16px;
             background: var(--surface-2);
             cursor: pointer;
             user-select: none;
-            transition: background 0.15s;
+            transition: var(--transition);
         }
 
         .think-header:hover {
@@ -766,68 +827,59 @@
         .think-header-left {
             display: flex;
             align-items: center;
-            gap: 7px;
+            gap: 10px;
             font-size: 11px;
             font-weight: 600;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
-            color: var(--accent);
+            color: var(--text-dim);
         }
 
         .think-header-left svg {
-            width: 13px;
-            height: 13px;
-            flex-shrink: 0;
+            width: 14px;
+            height: 14px;
+            color: var(--primary);
         }
 
         .think-toggle {
             font-size: 10px;
-            font-family: var(--mono);
-            color: var(--text-dim);
-            letter-spacing: 0.06em;
+            font-weight: 500;
+            color: var(--primary);
             display: flex;
             align-items: center;
-            gap: 5px;
-            transition: color 0.15s;
+            gap: 6px;
         }
 
         .think-toggle svg {
-            width: 12px;
-            height: 12px;
-            transition: transform 0.25s ease;
+            width: 14px;
+            height: 14px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .think-block.expanded .think-toggle svg {
             transform: rotate(180deg);
         }
 
-        .think-block.expanded .think-toggle {
-            color: var(--text-muted);
-        }
-
         .think-body {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            background: var(--surface-2);
-            border-top: 0 solid var(--border);
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--bg);
         }
 
         .think-block.expanded .think-body {
-            max-height: 320px;
-            border-top-width: 1px;
+            max-height: none; /* Remove o limite de altura para mostrar tudo */
+            border-top: 1px solid var(--border);
         }
 
         .think-scroll {
-            max-height: 320px;
-            overflow-y: auto;
-            padding: 12px 14px;
-            font-size: 12px;
-            line-height: 1.7;
+            padding: 16px;
+            font-size: 13px;
+            line-height: 1.6;
             color: var(--text-muted);
-            font-family: var(--mono);
+            font-family: var(--font);
+            font-style: italic;
             white-space: pre-wrap;
-            word-break: break-word;
         }
 
         .think-scroll::-webkit-scrollbar {
@@ -1621,39 +1673,89 @@
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
         });
 
-        function thinkBlockHTML(content, label) {
+        function thinkBlockHTML(content, label, isExpanded = false) {
             const plain = content.replace(/<[^>]+>/g, '').trim();
-            return `<div class="think-block">
-            <div class="think-header" onclick="this.closest('.think-block').classList.toggle('expanded')">
-                <div class="think-header-left">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><circle cx="12" cy="12" r="10"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    ${label}
+            if (!plain) return '';
+
+            return `<div class="think-block ${isExpanded ? 'expanded' : ''}">
+                <div class="think-header" onclick="this.closest('.think-block').classList.toggle('expanded'); const txt = this.querySelector('.think-toggle span'); txt.innerText = txt.innerText === 'Ver raciocínio' ? 'Fechar raciocínio' : 'Ver raciocínio';">
+                    <div class="think-header-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                        </svg>
+                        ${label}
+                    </div>
+                    <div class="think-toggle">
+                        <span>${isExpanded ? 'Pensando...' : 'Ver raciocínio'}</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
                 </div>
-                <div class="think-toggle">
-                    ver raciocínio
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <div class="think-body">
+                    <div class="think-scroll">${plain}</div>
                 </div>
-            </div>
-            <div class="think-body">
-                <div class="think-scroll">${plain}</div>
-            </div>
-        </div>`;
+            </div>`;
         }
 
-        function renderBotContent(text) {
-            const thinkFull = text.match(/<think>([\s\S]*?)<\/think>/);
-            if (thinkFull) {
-                const parts = text.split(/<think>[\s\S]*?<\/think>/);
+        function renderBotContent(text, isStreaming = true) {
+            const cleanText = text.replace(/\[METRICS\].*?\[\/METRICS\]/g, '');
+            const isThinkingNow = isStreaming; // Durante o streaming, assumimos que está pensando se a tag estiver aberta
+
+            // 1. Tags <think>
+            const thinkMatch = cleanText.match(/<think>([\s\S]*?)(?:<\/think>|$)/);
+            if (thinkMatch) {
+                const parts = cleanText.split(/<think>|<\/think>/);
+                const isFinal = cleanText.includes('</think>');
                 return marked.parse(parts[0] || '') +
-                    thinkBlockHTML(thinkFull[1].trim(), 'Raciocínio') +
-                    marked.parse(parts[1] || '');
+                    thinkBlockHTML(thinkMatch[1].trim(), 'Processo de Raciocínio', !isFinal) +
+                    marked.parse(parts[2] || '');
             }
-            if (text.includes('<think>')) {
-                const parts = text.split('<think>');
-                return marked.parse(parts[0]) +
-                    thinkBlockHTML(parts[1].trim(), 'Pensando…');
+
+            // 2. Padrão "Thinking Process:"
+            if (cleanText.toLowerCase().includes('thinking process:')) {
+                const markerMatch = cleanText.match(/thinking process:/i);
+                const marker = markerMatch[0];
+                const markerIndex = cleanText.indexOf(marker);
+                const preText = cleanText.substring(0, markerIndex);
+                const postText = cleanText.substring(markerIndex + marker.length);
+                
+                // Tenta encontrar o fim do pensamento por uma quebra dupla de linha seguida de texto normal
+                // (Isso é uma heurística, pois o modelo não envia tag de fechamento)
+                let thinkingPart = postText;
+                let finalAnswer = "";
+                
+                // Se não estiver mais no streaming, tenta separar a resposta final
+                if (!isStreaming) {
+                    const splitPoint = postText.lastIndexOf('\n\n');
+                    if (splitPoint !== -1) {
+                        thinkingPart = postText.substring(0, splitPoint);
+                        finalAnswer = postText.substring(splitPoint);
+                    }
+                }
+
+                return marked.parse(preText) + 
+                       thinkBlockHTML(thinkingPart.trim(), 'Processo de Raciocínio', isStreaming) +
+                       marked.parse(finalAnswer);
             }
-            return marked.parse(text);
+
+            return marked.parse(cleanText);
+        }
+
+        function extractMetrics(text) {
+            const match = text.match(/\[METRICS\](.*?)\[\/METRICS\]/);
+            if (match) {
+                const [tps, tokens, time] = match[1].split('|');
+                return `<div class="perf-badge">
+                    <span><b>${tps}</b> t/s</span>
+                    <div class="perf-sep"></div>
+                    <span><b>${tokens}</b> tokens</span>
+                    <div class="perf-sep"></div>
+                    <span><b>${time}s</b></span>
+                </div>`;
+            }
+            return '';
         }
 
         function createMsg(text, isUser, imgBase64) {
@@ -1674,7 +1776,14 @@
                 wrap.innerHTML = `
                 <div class="avatar bot">✦</div>
                 <div class="msg-body">
-                    <div class="msg-meta"><span class="msg-name">Secagem AI</span>${time}</div>
+                    <div class="msg-meta">
+                        <span class="msg-name">Secagem AI</span>
+                        ${time}
+                        <button class="copy-btn" onclick="copyMsg(this)" title="Copiar resposta">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <span>Copiar</span>
+                        </button>
+                    </div>
                     <div class="msg-bubble"></div>
                 </div>`;
                 wrap.dataset.rawText = '';
@@ -1684,12 +1793,29 @@
 
         function updateBot(el, chunk) {
             el.dataset.rawText += chunk;
-            el.querySelector('.msg-bubble').innerHTML = renderBotContent(el.dataset.rawText);
+            const bubble = el.querySelector('.msg-bubble');
+            bubble.innerHTML = renderBotContent(el.dataset.rawText, true); // isStreaming = true
+            
+            // Handle Metrics display outside the bubble
+            const metricsHTML = extractMetrics(el.dataset.rawText);
+            if (metricsHTML) {
+                let badge = el.querySelector('.perf-badge');
+                if (!badge) {
+                    const badgeContainer = document.createElement('div');
+                    badgeContainer.innerHTML = metricsHTML;
+                    el.querySelector('.msg-body').appendChild(badgeContainer.firstChild);
+                }
+            }
+            
             scrollBottom();
         }
         
         function finalizeBotMessage(el) {
             const rawText = el.dataset.rawText;
+            
+            // Renderiza uma última vez com isStreaming = false para fechar o card e separar a resposta
+            el.querySelector('.msg-bubble').innerHTML = renderBotContent(rawText, false);
+            
             chatHistory.push({ role: 'assistant', content: rawText });
             
             // Mantém apenas as últimas 10 mensagens para não estourar o contexto
@@ -1721,6 +1847,33 @@
 
         function scrollBottom() {
             chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+        }
+
+        async function copyMsg(btn) {
+            const wrap = btn.closest('.message-wrap');
+            const rawText = wrap.dataset.rawText || "";
+            // Remove as tags de métricas e o bloco <think> para copiar apenas a resposta limpa
+            const cleanText = rawText.replace(/\[METRICS\].*?\[\/METRICS\]/g, '')
+                                     .replace(/<think>[\s\S]*?<\/think>/g, '')
+                                     .replace(/Thinking Process:[\s\S]*?\n\n/gi, '')
+                                     .trim();
+            
+            try {
+                await navigator.clipboard.writeText(cleanText);
+                const span = btn.querySelector('span');
+                const oldText = span.innerText;
+                span.innerText = 'Copiado!';
+                btn.style.borderColor = 'var(--primary)';
+                btn.style.color = 'var(--primary)';
+                
+                setTimeout(() => {
+                    span.innerText = oldText;
+                    btn.style.borderColor = '';
+                    btn.style.color = '';
+                }, 2000);
+            } catch (err) {
+                console.error('Erro ao copiar:', err);
+            }
         }
 
         async function sendMessage() {

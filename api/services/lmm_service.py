@@ -23,14 +23,15 @@ class LMMService:
         """
         if cls._instance is None:
             cls._instance = super(LMMService, cls).__new__(cls)
-            cls._instance._initialize_model(use_gpu=False)
+            # Tenta carregar com GPU por padrão já que o usuário tem uma AMD de 8GB
+            cls._instance._initialize_model(use_gpu=True)
         return cls._instance
 
     @property
     def model(self):
         return self._model
 
-    def _initialize_model(self, model_path=None, mmproj_path=None, use_gpu=False):
+    def _initialize_model(self, model_path=None, mmproj_path=None, use_gpu=True):
         """
         Carrega o modelo .gguf na memória RAM (CPU ou GPU).
         """
@@ -83,7 +84,7 @@ class LMMService:
             self._model = Llama(
                 model_path=model_path,
                 chat_handler=chat_handler,
-                n_ctx=8192,
+                n_ctx=16384,  # Aumentado de 8192 para 16384
                 n_threads=n_threads,
                 n_gpu_layers=n_gpu_layers
             )
@@ -136,10 +137,16 @@ class LMMService:
     def generate_stream(self, prompt, temperature=0.7, image_base64=None, system_prompt=None, history=None):
         """
         Gerador que retorna a resposta do modelo token por token (Streaming).
+        Inclui métricas de performance ao final.
         """
         if self._model is None:
             yield "Erro: O modelo LMM não está carregado."
             return
+
+        import time
+        start_time = time.time()
+        first_token_time = None
+        token_count = 0
 
         try:
             user_content = prompt
@@ -169,7 +176,22 @@ class LMMService:
                 if 'choices' in chunk and len(chunk['choices']) > 0:
                     delta = chunk['choices'][0].get('delta', {})
                     if 'content' in delta:
+                        if first_token_time is None:
+                            first_token_time = time.time()
+                        token_count += 1
                         yield delta['content']
+
+            # Cálculos de Performance
+            end_time = time.time()
+            total_duration = end_time - start_time
+            generation_duration = end_time - first_token_time if first_token_time else 0
+            tps = token_count / generation_duration if generation_duration > 0 else 0
+
+            # Formata o rodapé de métricas com tags para o frontend processar
+            metrics_footer = (
+                f"[METRICS]{tps:.2f}|{token_count}|{total_duration:.2f}[/METRICS]"
+            )
+            yield metrics_footer
 
         except Exception as e:
             yield f"Erro no streaming: {str(e)}"
