@@ -23,8 +23,6 @@ class LMMService:
         """
         if cls._instance is None:
             cls._instance = super(LMMService, cls).__new__(cls)
-            # Tenta carregar com GPU por padrão já que o usuário tem uma AMD de 8GB
-            cls._instance._initialize_model(use_gpu=True)
         return cls._instance
 
     @property
