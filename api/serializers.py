@@ -6,6 +6,7 @@ class ChatRequestSerializer(serializers.Serializer):
     image_base64 = serializers.CharField(required=False, allow_null=True, allow_blank=True, help_text="Imagem em base64 para modelos visuais.")
     history = serializers.ListField(child=serializers.DictField(), required=False, default=[], help_text="Histórico da conversa.")
     system_prompt = serializers.CharField(required=False, allow_null=True, allow_blank=True, help_text="Diretrizes personalizadas para a IA.")
+    use_rag = serializers.BooleanField(required=False, default=False, help_text="Se deve utilizar RAG (banco vetorial) para enriquecer o contexto.")
 
 class ModelSwitchSerializer(serializers.Serializer):
     model_name = serializers.CharField()

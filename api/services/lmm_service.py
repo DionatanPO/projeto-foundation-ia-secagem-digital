@@ -1,6 +1,9 @@
 import os
 import gc
+import logging
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 try:
     from llama_cpp import Llama
@@ -29,7 +32,7 @@ class LMMService:
     def model(self):
         return self._model
 
-    def _initialize_model(self, model_path=None, mmproj_path=None, use_gpu=True):
+    def _initialize_model(self, model_path=None, mmproj_path=None, use_gpu=False):
         """
         Carrega o modelo .gguf na memória RAM (CPU ou GPU).
         """
@@ -78,13 +81,16 @@ class LMMService:
 
             n_threads = int(os.getenv('N_THREADS', 4))
             n_gpu_layers = -1 if use_gpu else 0
+            n_ctx = int(os.getenv('N_CTX', 16384))
+            use_flash_attn = os.getenv('USE_FLASH_ATTN', 'True').lower() == 'true'
 
             self._model = Llama(
                 model_path=model_path,
                 chat_handler=chat_handler,
-                n_ctx=16384,  # Aumentado de 8192 para 16384
+                n_ctx=n_ctx,
                 n_threads=n_threads,
-                n_gpu_layers=n_gpu_layers
+                n_gpu_layers=n_gpu_layers,
+                flash_attn=use_flash_attn
             )
             self._current_model_path = model_path
             device = "GPU" if n_gpu_layers != 0 else "CPU"
@@ -132,7 +138,59 @@ class LMMService:
             print(f"Erro ao trocar de modelo: {e}")
             return False
 
-    def generate_stream(self, prompt, temperature=0.7, image_base64=None, system_prompt=None, history=None):
+    def unload_model(self) -> bool:
+        """
+        Descarrega completamente o modelo da memória RAM/VRAM, liberando recursos do sistema.
+        """
+        logger.info("Descarregando modelo LMM da memória...")
+        try:
+            if self._model is not None:
+                if hasattr(self._model, 'close'):
+                    self._model.close()
+                del self._model
+            self._model = None
+            if hasattr(self, '_current_model_path'):
+                del self._current_model_path
+            
+            # Força o coletor de lixo do Python a liberar RAM/VRAM
+            import gc
+            gc.collect()
+            logger.info("[OK] Modelo LMM descarregado com sucesso.")
+            return True
+        except Exception as e:
+            logger.error(f"Erro ao descarregar o modelo: {e}")
+            return False
+
+    # ------------------------------------------------------------------
+    # System Prompt centralizado — atualizado para doc.txt (sementes/silo)
+    # ------------------------------------------------------------------
+    def _build_rag_system_prompt(self, rag_context: str) -> str:
+        """
+        Constrói o System Prompt enriquecido com contexto RAG.
+        Fonte única de verdade: qualquer atualização é feita aqui.
+        """
+        return (
+            "Você é o Engenheiro Especialista da Secagem Digital, um assistente técnico rigoroso e analítico "
+            "especializado em monitoramento de silos e armazenagem industrial de grãos e sementes. "
+            "Responda sempre em Português Brasileiro.\n\n"
+            "Diretrizes Críticas de Raciocínio:\n"
+            "1. FIDELIDADE MÁXIMA AO TEXTO: Responda apenas com base nas informações explícitas no "
+            "[CONTEXTO DE DOCUMENTOS INTERNOS] abaixo. Não invente termos, processos ou valores numéricos.\n"
+            "2. SE NÃO SOUBER, ADMITA: Se a informação não estiver no contexto, diga claramente: "
+            "'Não encontrei essa informação nos documentos técnicos fornecidos.' "
+            "Não use conhecimento externo para cobrir lacunas.\n"
+            "3. LEITURA RIGOROSA DE NÚMEROS E UNIDADES: Leia valores numéricos, unidades e tabelas com "
+            "extremo rigor antes de tirar qualquer conclusão. Não confunda grandezas diferentes.\n"
+            "4. RACIOCÍNIO FÍSICO CORRETO:\n"
+            "   - Umidade Relativa (UR) acima de 85% é crítica para sementes armazenadas.\n"
+            "   - CO₂ elevado em silos é indicador precoce de hotspot metabólico.\n"
+            "   - Aeração por temperatura exclusiva pode ser insuficiente; considere entalpia e UR.\n"
+            "   - Deterioração fisiológica em sementes precede a deterioração comercial visível.\n\n"
+            f"[CONTEXTO DE DOCUMENTOS INTERNOS]\n{rag_context}\n[FIM DO CONTEXTO]\n\n"
+            "Responda à pergunta do usuário com base estrita no contexto acima."
+        )
+
+    def generate_stream(self, prompt, temperature=0.2, image_base64=None, system_prompt=None, history=None, use_rag=False):
         """
         Gerador que retorna a resposta do modelo token por token (Streaming).
         Inclui métricas de performance ao final.
@@ -154,7 +212,19 @@ class LMMService:
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
                 ]
 
-            final_system_prompt = system_prompt if system_prompt else "Você é um assistente virtual inteligente e prestativo. Responda em Português."
+            rag_context = ""
+            if use_rag:
+                from .rag_service import RagService
+                rag = RagService()
+                rag_context = rag.retrieve_context(prompt)
+
+            default_sys = (
+                "Você é o Engenheiro Especialista da Secagem Digital, um assistente virtual altamente "
+                "técnico focado em monitoramento de silos e processos de secagem industrial. Responda em Português."
+            )
+            final_system_prompt = system_prompt if system_prompt else default_sys
+            if rag_context:
+                final_system_prompt = self._build_rag_system_prompt(rag_context)
 
             messages = [{"role": "system", "content": final_system_prompt}]
 
@@ -194,7 +264,7 @@ class LMMService:
         except Exception as e:
             yield f"Erro no streaming: {str(e)}"
 
-    def generate_response(self, prompt, temperature=0.7, image_base64=None, system_prompt=None, history=None):
+    def generate_response(self, prompt, temperature=0.2, image_base64=None, system_prompt=None, history=None, use_rag=False):
         """
         Envia o prompt formatado para o modelo e retorna a resposta gerada.
         """
@@ -209,7 +279,19 @@ class LMMService:
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
                 ]
 
-            final_system_prompt = system_prompt if system_prompt else "Você é um assistente virtual inteligente e prestativo. Responda em Português."
+            rag_context = ""
+            if use_rag:
+                from .rag_service import RagService
+                rag = RagService()
+                rag_context = rag.retrieve_context(prompt)
+
+            default_sys = (
+                "Você é o Engenheiro Especialista da Secagem Digital, um assistente virtual altamente "
+                "técnico focado em monitoramento de silos e processos de secagem industrial. Responda em Português."
+            )
+            final_system_prompt = system_prompt if system_prompt else default_sys
+            if rag_context:
+                final_system_prompt = self._build_rag_system_prompt(rag_context)
 
             messages = [{"role": "system", "content": final_system_prompt}]
 

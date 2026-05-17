@@ -42,17 +42,19 @@ def chat_inference(request):
 
     if serializer.is_valid():
         prompt = serializer.validated_data['prompt']
-        temperature = serializer.validated_data.get('temperature', 0.7)
+        temperature = serializer.validated_data.get('temperature', 0.2)
         image_base64 = serializer.validated_data.get('image_base64', None)
         system_prompt = serializer.validated_data.get('system_prompt', None)
         history = serializer.validated_data.get('history', [])
+        use_rag = serializer.validated_data.get('use_rag', True)
 
         answer = lmm_service.generate_response(
             prompt=prompt,
             temperature=temperature,
             image_base64=image_base64,
             system_prompt=system_prompt,
-            history=history
+            history=history,
+            use_rag=use_rag
         )
 
         return Response({'response': answer}, status=status.HTTP_200_OK)
@@ -67,10 +69,11 @@ def chat_stream(request):
     serializer = ChatRequestSerializer(data=request.data)
     if serializer.is_valid():
         prompt = serializer.validated_data['prompt']
-        temperature = serializer.validated_data.get('temperature', 0.7)
+        temperature = serializer.validated_data.get('temperature', 0.2)
         image_base64 = serializer.validated_data.get('image_base64', None)
         system_prompt = serializer.validated_data.get('system_prompt', None)
         history = serializer.validated_data.get('history', [])
+        use_rag = serializer.validated_data.get('use_rag', True)
 
         def stream_generator():
             for chunk in lmm_service.generate_stream(
@@ -78,7 +81,8 @@ def chat_stream(request):
                 temperature=temperature,
                 image_base64=image_base64,
                 system_prompt=system_prompt,
-                history=history
+                history=history,
+                use_rag=use_rag
             ):
                 yield chunk
 
@@ -112,3 +116,25 @@ def switch_model(request):
             return Response({"status": "Model switched", "model": model_name})
         return Response({"error": "Failed to load model"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def clear_rag_storage(request):
+    """
+    Endpoint para apagar e reconstruir o índice RAG a partir dos documentos atuais em /documents.
+    """
+    from .services.rag_service import RagService
+    rag = RagService()
+    success = rag.clear_and_rebuild_storage()
+    if success:
+        return Response({"status": "RAG storage cleared and rebuilt successfully!"}, status=status.HTTP_200_OK)
+    return Response({"error": "Failed to clear/rebuild RAG storage"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+def unload_model(request):
+    """
+    Endpoint para descarregar o modelo atual da memória.
+    """
+    success = lmm_service.unload_model()
+    if success:
+        return Response({"status": "Model unloaded successfully and memory freed!"}, status=status.HTTP_200_OK)
+    return Response({"error": "Failed to unload model"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

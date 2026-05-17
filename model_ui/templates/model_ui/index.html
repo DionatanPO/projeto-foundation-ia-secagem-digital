@@ -33,11 +33,17 @@
             --surface-3: #3C4043;
             --surface-variant: #5F6368;
             
-            /* Cores Primárias Originais do Projeto (Verde Secagem Digital) */
-            --primary: #b1d18a;
-            --on-primary: #1b3700;
-            --primary-container: #2d5124;
-            --on-primary-container: #cdeda3;
+            /* Cores Primárias Verdes Escurecidas e Sofisticadas */
+            --primary: #8ab76b;
+            --on-primary: #0f2402;
+            --primary-container: #1b3d12;
+            --on-primary-container: #c5f4a7;
+            
+            /* Acentos definidos para elementos interativos (switches, botões) */
+            --accent: #8ab76b;
+            --accent-2: #a2d582;
+            --accent-bg: rgba(138, 183, 107, 0.25);
+            --accent-glow: rgba(138, 183, 107, 0.4);
             
             --text: #e3e3e3;
             --text-muted: #c4c7c5;
@@ -57,10 +63,17 @@
             --surface-3: #e6e9de;
             --surface-variant: #e1e4d5;
 
-            --primary: #2d5124;
+            /* Cores Primárias Verde Floresta Escuro de Alto Contraste */
+            --primary: #1c3d11;
             --on-primary: #ffffff;
-            --primary-container: #cdeda3;
-            --on-primary-container: #0f2000;
+            --primary-container: #c5f4a7;
+            --on-primary-container: #081a02;
+
+            /* Acentos definidos para elementos interativos (switches, botões) */
+            --accent: #1c3d11;
+            --accent-2: #2b5b1b;
+            --accent-bg: rgba(28, 61, 17, 0.15);
+            --accent-glow: rgba(28, 61, 17, 0.25);
 
             --text: #1a1c18;
             --text-muted: #44483d;
@@ -1044,8 +1057,8 @@
         }
 
         .send-btn {
-            background: var(--surface-3);
-            border: 1px solid var(--border);
+            background: transparent;
+            border: 1px solid transparent;
             border-radius: var(--radius-sm);
             width: 36px;
             height: 36px;
@@ -1055,20 +1068,22 @@
             color: var(--text-dim);
             cursor: pointer;
             transition: all 0.2s;
-            opacity: 0.4;
+            opacity: 0.5;
             pointer-events: none;
         }
 
         .send-btn.active {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: #0c0d0e;
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--on-primary);
             opacity: 1;
             pointer-events: auto;
         }
 
         .send-btn.active:hover {
             background: var(--accent-2);
+            border-color: var(--accent-2);
+            color: var(--on-primary);
             transform: scale(1.04);
         }
 
@@ -1496,16 +1511,47 @@
                     <div id="modelList" class="model-list" style="margin-top: 8px;">
                         <!-- Gerado via JS -->
                     </div>
+                    <button class="sys-input" id="unloadModelBtn" onclick="unloadCurrentModel()" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; cursor: pointer; background: rgba(219, 68, 85, 0.08); border: 1px solid rgba(219, 68, 85, 0.2); border-radius: 12px; color: #db4455; width: 100%; font-family: var(--font); font-weight: 500; transition: var(--transition); margin-top: 8px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" style="flex-shrink:0;">
+                            <rect x="4" y="4" width="16" height="16" rx="2" ry="2" />
+                        </svg>
+                        <span>Parar & Descarregar Modelo</span>
+                    </button>
                 </div>
 
-                <!-- Parâmetros -->
+                <!-- RAG Toggle -->
+                <div class="setting-row">
+                    <div class="toggle-row">
+                        <span class="toggle-label">Base de Conhecimento (RAG)</span>
+                        <label class="toggle">
+                            <input type="checkbox" id="ragToggle">
+                            <span class="toggle-track"></span>
+                            <span class="toggle-thumb"></span>
+                        </label>
+                    </div>
+                    <span style="font-size:10px; color:var(--text-dim); margin-top:4px; display:block;">
+                        Quando ativo, o modelo consulta os documentos internos antes de responder.
+                    </span>
+                </div>
+
+                <!-- Clear Storage Button -->
+                <div class="setting-row">
+                    <button class="sys-input" id="clearRagBtn" onclick="clearRagStorage()" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; cursor: pointer; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); width: 100%; font-family: var(--font); font-weight: 500; transition: var(--transition);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;">
+                            <path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>Limpar & Recarregar RAG</span>
+                    </button>
+                </div>
+
+                <!-- Temperatura -->
                 <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
                     <div class="setting-row">
                         <div class="setting-label">
                             <span class="nav-section-label" style="padding: 0; margin: 0;">Criatividade</span>
-                            <span id="tempDisplay" style="font-family: var(--mono); color: var(--primary); font-weight: 600;">0.7</span>
+                            <span id="tempDisplay" style="font-family: var(--mono); color: var(--primary); font-weight: 600;">0.1</span>
                         </div>
-                        <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7" style="width: 100%; margin-top: 8px;"
+                        <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.1" style="width: 100%; margin-top: 8px;"
                             oninput="document.getElementById('tempDisplay').textContent = (+this.value).toFixed(1)">
                     </div>
                 </div>
@@ -1885,6 +1931,9 @@
             
             const sysPromptEl = document.getElementById('systemPrompt');
             const systemPrompt = sysPromptEl ? sysPromptEl.value : null;
+
+            const ragToggleEl = document.getElementById('ragToggle');
+            const useRag = ragToggleEl ? ragToggleEl.checked : true;
             
             const payloadImage = currentImageBase64;
 
@@ -1910,7 +1959,8 @@
                         temperature: temperature,
                         image_base64: payloadImage,
                         history: chatHistory.slice(0, -1),
-                        system_prompt: systemPrompt
+                        system_prompt: systemPrompt,
+                        use_rag: useRag
                     })
                 });
 
@@ -2035,6 +2085,96 @@
             } catch (err) {
                 console.error("Erro:", err);
                 loadModels();
+            }
+        }
+
+        async function clearRagStorage() {
+            const btn = document.getElementById('clearRagBtn');
+            if (!btn || btn.disabled) return;
+            
+            const btnText = btn.querySelector('span');
+            const originalText = btnText.innerText;
+            
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btnText.innerText = 'Limpando & Recarregando...';
+            
+            try {
+                const response = await fetch('/api/clear-rag/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    btnText.innerText = 'Storage Recriado com Sucesso!';
+                    btn.style.borderColor = 'var(--primary)';
+                    btn.style.color = 'var(--primary)';
+                    setTimeout(() => {
+                        btnText.innerText = originalText;
+                        btn.disabled = false;
+                        btn.style.opacity = '';
+                        btn.style.borderColor = '';
+                        btn.style.color = '';
+                    }, 3000);
+                } else {
+                    alert("Falha ao limpar o Banco Vetorial.");
+                    btnText.innerText = originalText;
+                    btn.disabled = false;
+                    btn.style.opacity = '';
+                }
+            } catch (err) {
+                console.error("Erro ao limpar RAG:", err);
+                alert("Erro ao conectar ao servidor para limpar RAG.");
+                btnText.innerText = originalText;
+                btn.disabled = false;
+                btn.style.opacity = '';
+            }
+        }
+
+        async function unloadCurrentModel() {
+            const btn = document.getElementById('unloadModelBtn');
+            if (!btn || btn.disabled) return;
+            
+            const btnText = btn.querySelector('span');
+            const originalText = btnText.innerText;
+            
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btnText.innerText = 'Descarregando...';
+            
+            try {
+                const response = await fetch('/api/unload-model/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    btnText.innerText = 'Modelo Descarregado!';
+                    btn.style.borderColor = 'rgba(219, 68, 85, 0.4)';
+                    btn.style.background = 'rgba(219, 68, 85, 0.15)';
+                    
+                    await loadModels(); // Atualiza a lista de modelos
+                    updateRAM(); // Atualiza uso de memória
+                    
+                    setTimeout(() => {
+                        btnText.innerText = originalText;
+                        btn.disabled = false;
+                        btn.style.opacity = '';
+                        btn.style.borderColor = '';
+                        btn.style.background = '';
+                    }, 3000);
+                } else {
+                    alert("Falha ao descarregar o modelo.");
+                    btnText.innerText = originalText;
+                    btn.disabled = false;
+                    btn.style.opacity = '';
+                }
+            } catch (err) {
+                console.error("Erro ao descarregar o modelo:", err);
+                alert("Erro ao conectar ao servidor para descarregar o modelo.");
+                btnText.innerText = originalText;
+                btn.disabled = false;
+                btn.style.opacity = '';
             }
         }
 
