@@ -161,35 +161,6 @@ class LMMService:
             logger.error(f"Erro ao descarregar o modelo: {e}")
             return False
 
-    # ------------------------------------------------------------------
-    # System Prompt centralizado — atualizado para doc.txt (sementes/silo)
-    # ------------------------------------------------------------------
-    def _build_rag_system_prompt(self, rag_context: str) -> str:
-        """
-        Constrói o System Prompt enriquecido com contexto RAG.
-        Fonte única de verdade: qualquer atualização é feita aqui.
-        """
-        return (
-            "Você é o Engenheiro Especialista da Secagem Digital, um assistente técnico rigoroso e analítico "
-            "especializado em monitoramento de silos e armazenagem industrial de grãos e sementes. "
-            "Responda sempre em Português Brasileiro.\n\n"
-            "Diretrizes Críticas de Raciocínio:\n"
-            "1. FIDELIDADE MÁXIMA AO TEXTO: Responda apenas com base nas informações explícitas no "
-            "[CONTEXTO DE DOCUMENTOS INTERNOS] abaixo. Não invente termos, processos ou valores numéricos.\n"
-            "2. SE NÃO SOUBER, ADMITA: Se a informação não estiver no contexto, diga claramente: "
-            "'Não encontrei essa informação nos documentos técnicos fornecidos.' "
-            "Não use conhecimento externo para cobrir lacunas.\n"
-            "3. LEITURA RIGOROSA DE NÚMEROS E UNIDADES: Leia valores numéricos, unidades e tabelas com "
-            "extremo rigor antes de tirar qualquer conclusão. Não confunda grandezas diferentes.\n"
-            "4. RACIOCÍNIO FÍSICO CORRETO:\n"
-            "   - Umidade Relativa (UR) acima de 85% é crítica para sementes armazenadas.\n"
-            "   - CO₂ elevado em silos é indicador precoce de hotspot metabólico.\n"
-            "   - Aeração por temperatura exclusiva pode ser insuficiente; considere entalpia e UR.\n"
-            "   - Deterioração fisiológica em sementes precede a deterioração comercial visível.\n\n"
-            f"[CONTEXTO DE DOCUMENTOS INTERNOS]\n{rag_context}\n[FIM DO CONTEXTO]\n\n"
-            "Responda à pergunta do usuário com base estrita no contexto acima."
-        )
-
     def generate_stream(self, prompt, temperature=0.2, image_base64=None, system_prompt=None, history=None, use_rag=False):
         """
         Gerador que retorna a resposta do modelo token por token (Streaming).
@@ -205,28 +176,27 @@ class LMMService:
         token_count = 0
 
         try:
-            user_content = prompt
-            if image_base64:
-                user_content = [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-                ]
-
             rag_context = ""
             if use_rag:
                 from .rag_service import RagService
                 rag = RagService()
                 rag_context = rag.retrieve_context(prompt)
 
-            default_sys = (
-                "Você é o Engenheiro Especialista da Secagem Digital, um assistente virtual altamente "
-                "técnico focado em monitoramento de silos e processos de secagem industrial. Responda em Português."
-            )
-            final_system_prompt = system_prompt if system_prompt else default_sys
+            text_content = prompt
             if rag_context:
-                final_system_prompt = self._build_rag_system_prompt(rag_context)
+                text_content = (
+                    f"INFORMAÇÕES DE CONTEXTO INTERNO DO RAG:\n{rag_context}\n\n"
+                    f"Com base exclusivamente nas informações acima, responda à pergunta:\n{prompt}"
+                )
 
-            messages = [{"role": "system", "content": final_system_prompt}]
+            user_content = text_content
+            if image_base64:
+                user_content = [
+                    {"type": "text", "text": text_content},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+
+            messages = []
 
             if history:
                 messages.extend(history)
@@ -272,28 +242,27 @@ class LMMService:
             return "Erro: O modelo LMM não está carregado."
 
         try:
-            user_content = prompt
-            if image_base64:
-                user_content = [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-                ]
-
             rag_context = ""
             if use_rag:
                 from .rag_service import RagService
                 rag = RagService()
                 rag_context = rag.retrieve_context(prompt)
 
-            default_sys = (
-                "Você é o Engenheiro Especialista da Secagem Digital, um assistente virtual altamente "
-                "técnico focado em monitoramento de silos e processos de secagem industrial. Responda em Português."
-            )
-            final_system_prompt = system_prompt if system_prompt else default_sys
+            text_content = prompt
             if rag_context:
-                final_system_prompt = self._build_rag_system_prompt(rag_context)
+                text_content = (
+                    f"INFORMAÇÕES DE CONTEXTO INTERNO DO RAG:\n{rag_context}\n\n"
+                    f"Com base exclusivamente nas informações acima, responda à pergunta:\n{prompt}"
+                )
 
-            messages = [{"role": "system", "content": final_system_prompt}]
+            user_content = text_content
+            if image_base64:
+                user_content = [
+                    {"type": "text", "text": text_content},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+
+            messages = []
 
             if history:
                 messages.extend(history)
