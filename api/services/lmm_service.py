@@ -3,6 +3,8 @@ import gc
 import logging
 from django.conf import settings
 
+from .rag_service import RagService
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -10,7 +12,7 @@ try:
     from llama_cpp.llama_chat_format import Llava15ChatHandler
     LLAMA_INSTALLED = True
 except ImportError as e:
-    print(f"Aviso: llama-cpp-python não encontrado: {e}")
+    logger.warning("llama-cpp-python não encontrado: %s", e)
     Llama = None
     LLAMA_INSTALLED = False
 
@@ -20,12 +22,9 @@ class LMMService:
     _model = None
 
     def __new__(cls):
-        """
-        Padrão Singleton: Garante que apenas uma instância da classe exista
-        e que o modelo seja carregado apenas uma vez na memória.
-        """
         if cls._instance is None:
             cls._instance = super(LMMService, cls).__new__(cls)
+            cls._instance._rag_service = RagService()
         return cls._instance
 
     @property
@@ -33,56 +32,50 @@ class LMMService:
         return self._model
 
     def _initialize_model(self, model_path=None, mmproj_path=None, use_gpu=False):
-        """
-        Carrega o modelo .gguf na memória RAM (CPU ou GPU).
-        """
         if not LLAMA_INSTALLED:
-            print("Erro: llama-cpp-python não está instalado.")
+            logger.error("llama-cpp-python não está instalado.")
             self._model = None
             return
 
         if model_path is None:
-            model_path = os.getenv('MODEL_PATH', './models/seu_modelo_aqui.gguf')
+            model_path = settings.MODEL_PATH
 
-        # Resolve sempre para caminho absoluto
         model_path = os.path.abspath(model_path)
-        
-        # OTIMIZAÇÃO: Se o modelo já é o mesmo, não recarrega
+
         if self._model is not None and getattr(self, '_current_model_path', None) == model_path:
-            print(f"Modelo {os.path.basename(model_path)} já carregado. Pulando inicialização.")
+            logger.info("Modelo %s já carregado. Pulando inicialização.", os.path.basename(model_path))
             return
 
-        print(f"Carregando modelo: {model_path}")
+        logger.info("Carregando modelo: %s", model_path)
 
         if not os.path.exists(model_path):
-            print(f"Erro: Arquivo do modelo não encontrado: {model_path}")
+            logger.error("Arquivo do modelo não encontrado: %s", model_path)
             self._model = None
             return
 
-        # Limpa o modelo anterior da memória
         if self._model is not None:
             try:
                 if hasattr(self._model, 'close'):
                     self._model.close()
                 del self._model
             except Exception as e:
-                print(f"Aviso: Falha ao liberar modelo anterior: {e}")
+                logger.warning("Falha ao liberar modelo anterior: %s", e)
             self._model = None
             gc.collect()
 
         try:
             if mmproj_path is None:
-                mmproj_path = os.getenv('MMPROJ_PATH', None)
+                mmproj_path = settings.MMPROJ_PATH
 
             chat_handler = None
             if mmproj_path and os.path.exists(os.path.abspath(mmproj_path)):
                 mmproj_path = os.path.abspath(mmproj_path)
                 chat_handler = Llava15ChatHandler(clip_model_path=mmproj_path)
 
-            n_threads = int(os.getenv('N_THREADS', 4))
+            n_threads = settings.N_THREADS
             n_gpu_layers = -1 if use_gpu else 0
-            n_ctx = int(os.getenv('N_CTX', 16384))
-            use_flash_attn = os.getenv('USE_FLASH_ATTN', 'True').lower() == 'true'
+            n_ctx = settings.N_CTX
+            use_flash_attn = settings.USE_FLASH_ATTN
 
             self._model = Llama(
                 model_path=model_path,
@@ -94,12 +87,29 @@ class LMMService:
             )
             self._current_model_path = model_path
             device = "GPU" if n_gpu_layers != 0 else "CPU"
-            print(f"✓ Modelo carregado na {device}: {os.path.basename(model_path)}")
+            logger.info("Modelo carregado na %s: %s", device, os.path.basename(model_path))
         except Exception as e:
-            print(f"Erro ao carregar o modelo: {e}")
+            logger.error("Erro ao carregar o modelo: %s", e)
             import traceback
             traceback.print_exc()
             self._model = None
+
+    DEFAULT_SYSTEM_PROMPT = (
+        "Você é o especialista técnico do sistema 'Secagem Digital'. "
+        "Sua função é fornecer suporte técnico baseado estritamente no CONTEXTO fornecido.\n\n"
+        "REGRAS DE FORMATAÇÃO:\n"
+        "- Resposta estritamente em Markdown.\n"
+        "- Use tabelas para dados numéricos de sensores (Silos, Secadores).\n"
+        "- Use **negrito** para entidades (ex: Lote, Cliente) e NUNCA utilize aspas para destacá-las.\n"
+        "- Utilize emojis para tornar os dados legíveis: 🌾(Lote), 🌡️(Sensor), 🚜(Fazenda).\n\n"
+        "REGRAS DE CONTEÚDO (CRÍTICO):\n"
+        "- Se a informação não estiver presente no CONTEXTO, responda estritamente: "
+        "'Não localizei essa informação nos documentos disponíveis.'\n"
+        "- Proibido inventar dados ou alucinar valores.\n"
+        "- Se houver conflito entre seu conhecimento geral e o CONTEXTO, priorize o CONTEXTO.\n"
+        "- NUNCA exiba dados em formato JSON ou blocos de código brutos, "
+        "a menos que solicitado expressamente para fins de debug."
+    )
 
     def list_available_models(self):
         """
@@ -135,7 +145,7 @@ class LMMService:
             self._initialize_model(model_path=model_path, mmproj_path=mmproj_path, use_gpu=use_gpu)
             return self._model is not None
         except Exception as e:
-            print(f"Erro ao trocar de modelo: {e}")
+            logger.error("Erro ao trocar de modelo: %s", e)
             return False
 
     def unload_model(self) -> bool:
@@ -152,8 +162,6 @@ class LMMService:
             if hasattr(self, '_current_model_path'):
                 del self._current_model_path
             
-            # Força o coletor de lixo do Python a liberar RAM/VRAM
-            import gc
             gc.collect()
             logger.info("[OK] Modelo LMM descarregado com sucesso.")
             return True
@@ -161,7 +169,7 @@ class LMMService:
             logger.error(f"Erro ao descarregar o modelo: {e}")
             return False
 
-    def generate_stream(self, prompt, temperature=0.2, image_base64=None, system_prompt=None, history=None, use_rag=False):
+    def generate_stream(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
         """
         Gerador que retorna a resposta do modelo token por token (Streaming).
         Inclui métricas de performance ao final.
@@ -178,15 +186,17 @@ class LMMService:
         try:
             rag_context = ""
             if use_rag:
-                from .rag_service import RagService
-                rag = RagService()
-                rag_context = rag.retrieve_context(prompt)
+                rag_context = self._rag_service.retrieve_context(prompt)
 
             text_content = prompt
             if rag_context:
                 text_content = (
-                    f"INFORMAÇÕES DE CONTEXTO INTERNO DO RAG:\n{rag_context}\n\n"
-                    f"Com base exclusivamente nas informações acima, responda à pergunta:\n{prompt}"
+                    f"CONTEXTO DOS DOCUMENTOS:\n{rag_context}\n\n"
+                    f"PERGUNTA: {prompt}\n\n"
+                    f"INSTRUÇÃO: Responda APENAS com base no CONTEXTO acima. "
+                    f"NÃO invente dados, nomes, números ou informações que não estejam no CONTEXTO. "
+                    f"Se o CONTEXTO não tiver a resposta, diga que não possui essa informação. "
+                    f"Use Markdown rico."
                 )
 
             user_content = text_content
@@ -197,6 +207,9 @@ class LMMService:
                 ]
 
             messages = []
+            
+            sys_msg = system_prompt if system_prompt else self.DEFAULT_SYSTEM_PROMPT
+            messages.append({"role": "system", "content": sys_msg})
 
             if history:
                 messages.extend(history)
@@ -234,7 +247,7 @@ class LMMService:
         except Exception as e:
             yield f"Erro no streaming: {str(e)}"
 
-    def generate_response(self, prompt, temperature=0.2, image_base64=None, system_prompt=None, history=None, use_rag=False):
+    def generate_response(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
         """
         Envia o prompt formatado para o modelo e retorna a resposta gerada.
         """
@@ -244,15 +257,17 @@ class LMMService:
         try:
             rag_context = ""
             if use_rag:
-                from .rag_service import RagService
-                rag = RagService()
-                rag_context = rag.retrieve_context(prompt)
+                rag_context = self._rag_service.retrieve_context(prompt)
 
             text_content = prompt
             if rag_context:
                 text_content = (
-                    f"INFORMAÇÕES DE CONTEXTO INTERNO DO RAG:\n{rag_context}\n\n"
-                    f"Com base exclusivamente nas informações acima, responda à pergunta:\n{prompt}"
+                    f"CONTEXTO DOS DOCUMENTOS:\n{rag_context}\n\n"
+                    f"PERGUNTA: {prompt}\n\n"
+                    f"INSTRUÇÃO: Responda APENAS com base no CONTEXTO acima. "
+                    f"NÃO invente dados, nomes, números ou informações que não estejam no CONTEXTO. "
+                    f"Se o CONTEXTO não tiver a resposta, diga que não possui essa informação. "
+                    f"Use Markdown rico."
                 )
 
             user_content = text_content
@@ -263,6 +278,9 @@ class LMMService:
                 ]
 
             messages = []
+            
+            sys_msg = system_prompt if system_prompt else self.DEFAULT_SYSTEM_PROMPT
+            messages.append({"role": "system", "content": sys_msg})
 
             if history:
                 messages.extend(history)

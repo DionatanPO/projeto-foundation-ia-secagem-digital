@@ -36,7 +36,8 @@ class RagService:
 
             try:
                 Settings.embed_model = HuggingFaceEmbedding(
-                    model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+                    model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+                    token=settings.HF_TOKEN
                 )
                 Settings.node_parser = SentenceSplitter(chunk_size=1500, chunk_overlap=300)
                 Settings.llm = None

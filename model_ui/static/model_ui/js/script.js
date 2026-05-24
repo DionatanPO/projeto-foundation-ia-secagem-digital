@@ -393,7 +393,7 @@ window.sendMessage = async function() {
     if (!text && !currentImageBase64) return;
     dismissWelcome();
 
-    const temperature = parseFloat(document.getElementById('temperature')?.value) || 0.7;
+    const temperature = parseFloat(document.getElementById('temperature')?.value) || 0.1;
 
     const sysPromptEl = document.getElementById('systemPrompt');
     const systemPrompt = sysPromptEl ? sysPromptEl.value : null;

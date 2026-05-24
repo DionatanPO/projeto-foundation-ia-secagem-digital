@@ -78,7 +78,18 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
-USE_TZ = True
+USE_TZ = False
 STATIC_URL = 'static/'
 CORS_ALLOW_ALL_ORIGINS = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Model Configuration (LMM)
+MODEL_PATH = os.getenv('MODEL_PATH', './models/seu_modelo_aqui.gguf')
+MMPROJ_PATH = os.getenv('MMPROJ_PATH', None)
+N_THREADS = int(os.getenv('N_THREADS', 4))
+N_CTX = int(os.getenv('N_CTX', 16384))
+USE_FLASH_ATTN = os.getenv('USE_FLASH_ATTN', 'True').lower() == 'true'
+N_GPU_LAYERS = int(os.getenv('N_GPU_LAYERS', '0'))
+
+# HuggingFace
+HF_TOKEN = os.getenv('HF_TOKEN', None)
