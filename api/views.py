@@ -76,15 +76,18 @@ def chat_stream(request):
         use_rag = serializer.validated_data.get('use_rag', True)
 
         def stream_generator():
-            for chunk in lmm_service.generate_stream(
-                prompt=prompt,
-                temperature=temperature,
-                image_base64=image_base64,
-                system_prompt=system_prompt,
-                history=history,
-                use_rag=use_rag
-            ):
-                yield chunk
+            try:
+                for chunk in lmm_service.generate_stream(
+                    prompt=prompt,
+                    temperature=temperature,
+                    image_base64=image_base64,
+                    system_prompt=system_prompt,
+                    history=history,
+                    use_rag=use_rag
+                ):
+                    yield chunk
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
         return StreamingHttpResponse(stream_generator(), content_type='text/plain')
 

@@ -476,20 +476,6 @@ window.sendMessage = async function() {
     }
 };
 
-// RAM
-async function updateRAM() {
-    try {
-        const r = await fetch('/api/status/');
-        if (r.ok) {
-            const d = await r.json();
-            document.getElementById('ramUsage').textContent = d.process_ram_mb + ' MB';
-        }
-    } catch { }
-}
-
-setInterval(updateRAM, 5000);
-updateRAM();
-
 // --- Model Management ---
 async function loadModels() {
     try {

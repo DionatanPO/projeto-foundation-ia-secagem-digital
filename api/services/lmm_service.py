@@ -1,4 +1,5 @@
 import os
+import re
 import gc
 import logging
 from django.conf import settings
@@ -24,8 +25,13 @@ class LMMService:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(LMMService, cls).__new__(cls)
-            cls._instance._rag_service = RagService()
         return cls._instance
+
+    @property
+    def rag_service(self):
+        if not hasattr(self, '_rag_service') or self._rag_service is None:
+            self._rag_service = RagService()
+        return self._rag_service
 
     @property
     def model(self):
@@ -85,6 +91,9 @@ class LMMService:
                 n_gpu_layers=n_gpu_layers,
                 flash_attn=use_flash_attn
             )
+
+            self._patch_chat_template()
+
             self._current_model_path = model_path
             device = "GPU" if n_gpu_layers != 0 else "CPU"
             logger.info("Modelo carregado na %s: %s", device, os.path.basename(model_path))
@@ -94,6 +103,33 @@ class LMMService:
             traceback.print_exc()
             self._model = None
 
+    def _patch_chat_template(self):
+        if self._model is None:
+            return
+        template = self._model.metadata.get('tokenizer.chat_template')
+        if not template or 'enable_thinking' not in template:
+            return
+        modified = template.replace(
+            "{%- if enable_thinking is defined and enable_thinking is false %}",
+            "{%- if True %}"
+        ).replace(
+            "{{- '<think>\\n' }}",
+            "{{- '' }}"
+        )
+        eos_token_id = self._model.token_eos()
+        bos_token_id = self._model.token_bos()
+        eos_token = self._model._model.token_get_text(eos_token_id) if eos_token_id != -1 else ""
+        bos_token = self._model._model.token_get_text(bos_token_id) if bos_token_id != -1 else ""
+
+        from llama_cpp.llama_chat_format import Jinja2ChatFormatter, chat_formatter_to_chat_completion_handler
+        formatter = Jinja2ChatFormatter(
+            template=modified,
+            eos_token=eos_token,
+            bos_token=bos_token,
+            stop_token_ids=[eos_token_id],
+        )
+        self._model._chat_handlers['chat_template.default'] = formatter.to_chat_handler()
+
     DEFAULT_SYSTEM_PROMPT = (
         "Você é o especialista técnico do sistema 'Secagem Digital'. "
         "Sua função é fornecer suporte técnico baseado estritamente no CONTEXTO fornecido.\n\n"
@@ -101,7 +137,7 @@ class LMMService:
         "- Resposta estritamente em Markdown.\n"
         "- Use tabelas para dados numéricos de sensores (Silos, Secadores).\n"
         "- Use **negrito** para entidades (ex: Lote, Cliente) e NUNCA utilize aspas para destacá-las.\n"
-        "- Utilize emojis para tornar os dados legíveis: 🌾(Lote), 🌡️(Sensor), 🚜(Fazenda).\n\n"
+        "- Proibido o uso de emojis.\n\n"
         "REGRAS DE CONTEÚDO (CRÍTICO):\n"
         "- Se a informação não estiver presente no CONTEXTO, responda estritamente: "
         "'Não localizei essa informação nos documentos disponíveis.'\n"
@@ -169,6 +205,10 @@ class LMMService:
             logger.error(f"Erro ao descarregar o modelo: {e}")
             return False
 
+    @staticmethod
+    def _strip_think(text: str) -> str:
+        return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+
     def generate_stream(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
         """
         Gerador que retorna a resposta do modelo token por token (Streaming).
@@ -186,7 +226,7 @@ class LMMService:
         try:
             rag_context = ""
             if use_rag:
-                rag_context = self._rag_service.retrieve_context(prompt)
+                rag_context = self.rag_service.retrieve_context(prompt)
 
             text_content = prompt
             if rag_context:
@@ -223,6 +263,8 @@ class LMMService:
                 stream=True
             )
 
+            think_buffer = ""
+            in_think = False
             for chunk in stream:
                 if 'choices' in chunk and len(chunk['choices']) > 0:
                     delta = chunk['choices'][0].get('delta', {})
@@ -230,7 +272,26 @@ class LMMService:
                         if first_token_time is None:
                             first_token_time = time.time()
                         token_count += 1
-                        yield delta['content']
+                        content = delta['content']
+                        think_buffer += content
+                        if not in_think:
+                            idx = think_buffer.find('<think>')
+                            if idx != -1:
+                                yield think_buffer[:idx]
+                                think_buffer = ""
+                                in_think = True
+                            else:
+                                safe_end = max(0, len(think_buffer) - 7)
+                                if safe_end > 0:
+                                    yield think_buffer[:safe_end]
+                                    think_buffer = think_buffer[safe_end:]
+                        if in_think:
+                            end_idx = think_buffer.find('</think>')
+                            if end_idx != -1:
+                                think_buffer = think_buffer[end_idx + 8:]
+                                in_think = False
+            if not in_think and think_buffer:
+                yield think_buffer
 
             # Cálculos de Performance
             end_time = time.time()
@@ -257,7 +318,7 @@ class LMMService:
         try:
             rag_context = ""
             if use_rag:
-                rag_context = self._rag_service.retrieve_context(prompt)
+                rag_context = self.rag_service.retrieve_context(prompt)
 
             text_content = prompt
             if rag_context:
@@ -293,7 +354,7 @@ class LMMService:
                 temperature=temperature
             )
 
-            response_text = output['choices'][0]['message']['content'].strip()
+            response_text = self._strip_think(output['choices'][0]['message']['content'])
 
             if response_text.startswith("ASSISTANT:"):
                 response_text = response_text.replace("ASSISTANT:", "", 1).strip()
