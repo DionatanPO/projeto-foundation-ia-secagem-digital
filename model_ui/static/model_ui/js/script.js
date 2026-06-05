@@ -448,10 +448,51 @@ window.sendMessage = async function() {
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
+        let buffer = '';
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            updateBot(botEl, decoder.decode(value, { stream: true }));
+            
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // Guarda a linha incompleta
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const event = JSON.parse(line);
+                    let bubble = botEl.querySelector('.msg-bubble');
+
+                    if (event.type === 'thought') {
+                        let thinkCard = bubble.querySelector('.think-block');
+                        if (!thinkCard) {
+                            bubble.insertAdjacentHTML('afterbegin', thinkBlockHTML('', 'Processo de Raciocínio', true));
+                            thinkCard = bubble.querySelector('.think-block');
+                        }
+                        thinkCard.querySelector('.think-scroll').innerText += event.content;
+                    } else if (event.type === 'answer') {
+                        // Remove o card de pensamento se existir
+                        let thinkCard = bubble.querySelector('.think-block');
+                        if (thinkCard) thinkCard.classList.remove('expanded');
+                        
+                        // Incrementa o Markdown apenas com o conteúdo
+                        botEl.dataset.rawText += event.content;
+                        bubble.innerHTML = renderBotContent(botEl.dataset.rawText, true);
+                    } else if (event.type === 'metrics') {
+                        let badgeContainer = document.createElement('div');
+                        badgeContainer.innerHTML = `<div class="perf-badge">
+                            <span><b>${event.content.tps.toFixed(2)}</b> t/s</span>
+                            <div class="perf-sep"></div>
+                            <span><b>${event.content.tokens}</b> tokens</span>
+                            <div class="perf-sep"></div>
+                            <span><b>${event.content.duration.toFixed(2)}s</b></span>
+                        </div>`;
+                        botEl.querySelector('.msg-body').appendChild(badgeContainer.firstChild);
+                    }
+                } catch (e) { 
+                    console.error('Erro ao processar JSON:', e, 'Linha:', line); 
+                }
+            }
         }
         finalizeBotMessage(botEl);
     } catch (err) {

@@ -1,6 +1,7 @@
 import os
 import re
 import gc
+import json
 import logging
 from django.conf import settings
 
@@ -211,11 +212,13 @@ class LMMService:
 
     def generate_stream(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
         """
-        Gerador que retorna a resposta do modelo token por token (Streaming).
-        Inclui métricas de performance ao final.
+        Gera resposta em formato JSON estruturado (SSE-like):
+        {"type": "thought", "content": "..."}
+        {"type": "answer", "content": "..."}
+        {"type": "metrics", "content": {...}}
         """
         if self._model is None:
-            yield "Erro: O modelo LMM não está carregado."
+            yield json.dumps({"type": "error", "content": "O modelo LMM não está carregado."})
             return
 
         import time
@@ -224,20 +227,8 @@ class LMMService:
         token_count = 0
 
         try:
-            rag_context = ""
-            if use_rag:
-                rag_context = self.rag_service.retrieve_context(prompt)
-
-            text_content = prompt
-            if rag_context:
-                text_content = (
-                    f"CONTEXTO DOS DOCUMENTOS:\n{rag_context}\n\n"
-                    f"PERGUNTA: {prompt}\n\n"
-                    f"INSTRUÇÃO: Responda APENAS com base no CONTEXTO acima. "
-                    f"NÃO invente dados, nomes, números ou informações que não estejam no CONTEXTO. "
-                    f"Se o CONTEXTO não tiver a resposta, diga que não possui essa informação. "
-                    f"Use Markdown rico."
-                )
+            rag_context = self.rag_service.retrieve_context(prompt) if use_rag else ""
+            text_content = f"CONTEXTO:\n{rag_context}\n\nPERGUNTA: {prompt}" if rag_context else prompt
 
             user_content = text_content
             if image_base64:
@@ -246,21 +237,12 @@ class LMMService:
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
                 ]
 
-            messages = []
-            
-            sys_msg = system_prompt if system_prompt else self.DEFAULT_SYSTEM_PROMPT
-            messages.append({"role": "system", "content": sys_msg})
-
-            if history:
-                messages.extend(history)
-
+            messages = [{"role": "system", "content": system_prompt or self.DEFAULT_SYSTEM_PROMPT}]
+            if history: messages.extend(history)
             messages.append({"role": "user", "content": user_content})
 
             stream = self._model.create_chat_completion(
-                messages=messages,
-                max_tokens=None,
-                temperature=temperature,
-                stream=True
+                messages=messages, max_tokens=None, temperature=temperature, stream=True
             )
 
             think_buffer = ""
@@ -269,44 +251,34 @@ class LMMService:
                 if 'choices' in chunk and len(chunk['choices']) > 0:
                     delta = chunk['choices'][0].get('delta', {})
                     if 'content' in delta:
-                        if first_token_time is None:
-                            first_token_time = time.time()
+                        if first_token_time is None: first_token_time = time.time()
                         token_count += 1
                         content = delta['content']
-                        think_buffer += content
-                        if not in_think:
-                            idx = think_buffer.find('<think>')
-                            if idx != -1:
-                                yield think_buffer[:idx]
-                                think_buffer = ""
-                                in_think = True
-                            else:
-                                safe_end = max(0, len(think_buffer) - 7)
-                                if safe_end > 0:
-                                    yield think_buffer[:safe_end]
-                                    think_buffer = think_buffer[safe_end:]
+                        
+                        # Detecção de tags <think>
+                        if not in_think and "<think>" in content:
+                            in_think = True
+                            content = content.replace("<think>", "")
+                        
                         if in_think:
-                            end_idx = think_buffer.find('</think>')
-                            if end_idx != -1:
-                                think_buffer = think_buffer[end_idx + 8:]
+                            if "</think>" in content:
                                 in_think = False
-            if not in_think and think_buffer:
-                yield think_buffer
+                                content = content.replace("</think>", "")
+                                yield json.dumps({"type": "thought", "content": content}) + "\n"
+                            else:
+                                yield json.dumps({"type": "thought", "content": content}) + "\n"
+                        else:
+                            yield json.dumps({"type": "answer", "content": content}) + "\n"
 
-            # Cálculos de Performance
-            end_time = time.time()
-            total_duration = end_time - start_time
-            generation_duration = end_time - first_token_time if first_token_time else 0
-            tps = token_count / generation_duration if generation_duration > 0 else 0
-
-            # Formata o rodapé de métricas com tags para o frontend processar
-            metrics_footer = (
-                f"[METRICS]{tps:.2f}|{token_count}|{total_duration:.2f}[/METRICS]"
-            )
-            yield metrics_footer
+            metrics = {
+                "tps": token_count / (time.time() - first_token_time) if first_token_time else 0,
+                "tokens": token_count,
+                "duration": time.time() - start_time
+            }
+            yield json.dumps({"type": "metrics", "content": metrics}) + "\n"
 
         except Exception as e:
-            yield f"Erro no streaming: {str(e)}"
+            yield json.dumps({"type": "error", "content": str(e)})
 
     def generate_response(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
         """
