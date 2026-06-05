@@ -212,13 +212,14 @@ class LMMService:
 
     def generate_stream(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
         """
-        Gera resposta em formato JSON estruturado (SSE-like):
-        {"type": "thought", "content": "..."}
-        {"type": "answer", "content": "..."}
-        {"type": "metrics", "content": {...}}
+        Streaming padronizado (NDJSON):
+        {"event": "thought", "data": "..."}
+        {"event": "message", "data": "..."}
+        {"event": "metrics", "data": {...}}
+        {"event": "done", "data": null}
         """
         if self._model is None:
-            yield json.dumps({"type": "error", "content": "O modelo LMM não está carregado."})
+            yield json.dumps({"event": "error", "data": "Modelo não carregado."}) + "\n"
             return
 
         import time
@@ -245,7 +246,6 @@ class LMMService:
                 messages=messages, max_tokens=None, temperature=temperature, stream=True
             )
 
-            think_buffer = ""
             in_think = False
             for chunk in stream:
                 if 'choices' in chunk and len(chunk['choices']) > 0:
@@ -255,7 +255,6 @@ class LMMService:
                         token_count += 1
                         content = delta['content']
                         
-                        # Detecção de tags <think>
                         if not in_think and "<think>" in content:
                             in_think = True
                             content = content.replace("<think>", "")
@@ -264,21 +263,22 @@ class LMMService:
                             if "</think>" in content:
                                 in_think = False
                                 content = content.replace("</think>", "")
-                                yield json.dumps({"type": "thought", "content": content}) + "\n"
+                                yield json.dumps({"event": "thought", "data": content}) + "\n"
                             else:
-                                yield json.dumps({"type": "thought", "content": content}) + "\n"
+                                yield json.dumps({"event": "thought", "data": content}) + "\n"
                         else:
-                            yield json.dumps({"type": "answer", "content": content}) + "\n"
+                            yield json.dumps({"event": "message", "data": content}) + "\n"
 
             metrics = {
                 "tps": token_count / (time.time() - first_token_time) if first_token_time else 0,
                 "tokens": token_count,
                 "duration": time.time() - start_time
             }
-            yield json.dumps({"type": "metrics", "content": metrics}) + "\n"
+            yield json.dumps({"event": "metrics", "data": metrics}) + "\n"
+            yield json.dumps({"event": "done", "data": None}) + "\n"
 
         except Exception as e:
-            yield json.dumps({"type": "error", "content": str(e)})
+            yield json.dumps({"event": "error", "data": str(e)}) + "\n"
 
     def generate_response(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
         """

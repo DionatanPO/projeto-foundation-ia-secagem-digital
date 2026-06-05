@@ -36,19 +36,21 @@ def system_status(request):
 @api_view(['POST'])
 def chat_inference(request):
     """
-    Endpoint para enviar um prompt ao modelo LMM e obter a resposta.
+    Endpoint para enviar um prompt ao modelo LMM e obter a resposta estruturada.
     """
     serializer = ChatRequestSerializer(data=request.data)
 
     if serializer.is_valid():
         prompt = serializer.validated_data['prompt']
-        temperature = serializer.validated_data.get('temperature', 0.2)
+        temperature = max(0.0, min(1.0, serializer.validated_data['temperature']))
         image_base64 = serializer.validated_data.get('image_base64', None)
         system_prompt = serializer.validated_data.get('system_prompt', None)
         history = serializer.validated_data.get('history', [])
         use_rag = serializer.validated_data.get('use_rag', True)
 
-        answer = lmm_service.generate_response(
+        # Usamos generate_response que já trata o JSON interno do llama.cpp
+        # Nota: Ajustaremos o LMMService se necessário para separar melhor.
+        answer_text = lmm_service.generate_response(
             prompt=prompt,
             temperature=temperature,
             image_base64=image_base64,
@@ -57,9 +59,14 @@ def chat_inference(request):
             use_rag=use_rag
         )
 
-        return Response({'response': answer}, status=status.HTTP_200_OK)
+        # Resposta formatada para consumo simples
+        return Response({
+            'resposta': answer_text,
+            'thinking': "" # Opcional: extrair do modelo se necessário
+        }, status=status.HTTP_200_OK)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['POST'])
 def chat_stream(request):

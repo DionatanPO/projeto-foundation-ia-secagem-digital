@@ -460,34 +460,36 @@ window.sendMessage = async function() {
             for (const line of lines) {
                 if (!line.trim()) continue;
                 try {
-                    const event = JSON.parse(line);
+                    const packet = JSON.parse(line);
+                    const event = packet.event;
+                    const data = packet.data;
                     let bubble = botEl.querySelector('.msg-bubble');
 
-                    if (event.type === 'thought') {
+                    if (event === 'thought') {
                         let thinkCard = bubble.querySelector('.think-block');
                         if (!thinkCard) {
                             bubble.insertAdjacentHTML('afterbegin', thinkBlockHTML('', 'Processo de Raciocínio', true));
                             thinkCard = bubble.querySelector('.think-block');
                         }
-                        thinkCard.querySelector('.think-scroll').innerText += event.content;
-                    } else if (event.type === 'answer') {
-                        // Remove o card de pensamento se existir
+                        thinkCard.querySelector('.think-scroll').innerText += data;
+                    } else if (event === 'message') {
                         let thinkCard = bubble.querySelector('.think-block');
                         if (thinkCard) thinkCard.classList.remove('expanded');
                         
-                        // Incrementa o Markdown apenas com o conteúdo
-                        botEl.dataset.rawText += event.content;
+                        botEl.dataset.rawText += data;
                         bubble.innerHTML = renderBotContent(botEl.dataset.rawText, true);
-                    } else if (event.type === 'metrics') {
+                    } else if (event === 'metrics') {
                         let badgeContainer = document.createElement('div');
                         badgeContainer.innerHTML = `<div class="perf-badge">
-                            <span><b>${event.content.tps.toFixed(2)}</b> t/s</span>
+                            <span><b>${data.tps.toFixed(2)}</b> t/s</span>
                             <div class="perf-sep"></div>
-                            <span><b>${event.content.tokens}</b> tokens</span>
+                            <span><b>${data.tokens}</b> tokens</span>
                             <div class="perf-sep"></div>
-                            <span><b>${event.content.duration.toFixed(2)}s</b></span>
+                            <span><b>${data.duration.toFixed(2)}s</b></span>
                         </div>`;
                         botEl.querySelector('.msg-body').appendChild(badgeContainer.firstChild);
+                    } else if (event === 'done') {
+                        console.log('Stream concluído com sucesso.');
                     }
                 } catch (e) { 
                     console.error('Erro ao processar JSON:', e, 'Linha:', line); 
@@ -517,7 +519,53 @@ window.sendMessage = async function() {
     }
 };
 
-// --- Model Management ---
+window.updateRAM = async function() {
+    try {
+        const response = await fetch('/api/status/');
+        const data = await response.json();
+        const ramDisplay = document.getElementById('ramDisplay');
+        if (ramDisplay) {
+            ramDisplay.innerText = `${data.process_ram_mb} MB`;
+        }
+        // Opcional: atualizar indicador de GPU se existir no UI
+        const gpuStatus = document.getElementById('gpuStatus');
+        if (gpuStatus) {
+            gpuStatus.innerText = data.gpu_enabled ? 'GPU Ativa' : 'CPU';
+        }
+    } catch (err) {
+        console.error("Erro ao atualizar status do sistema:", err);
+    }
+};
+
+// Substituir chamadas internas de updateRAM() para window.updateRAM()
+async function changeModel(modelName, element) {
+    if (isWaiting) return;
+
+    // UI Feedback
+    const allItems = document.querySelectorAll('.model-item');
+    allItems.forEach(i => i.classList.remove('active', 'switching'));
+    element.classList.add('switching');
+
+    try {
+        const useGpu = document.getElementById('hardwareSelect').value === 'gpu';
+        const response = await fetch('/api/switch-model/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model_name: modelName, use_gpu: useGpu })
+        });
+
+        if (response.ok) {
+            await loadModels(); // Atualiza a lista
+            window.updateRAM(); // Atualiza uso de memória
+        } else {
+            alert("Erro ao trocar o modelo.");
+            loadModels();
+        }
+    } catch (err) {
+        console.error("Erro:", err);
+        loadModels();
+    }
+}
 async function loadModels() {
     try {
         const response = await fetch('/api/models/');
@@ -585,7 +633,7 @@ async function changeModel(modelName, element) {
 
         if (response.ok) {
             await loadModels(); // Atualiza a lista
-            updateRAM(); // Atualiza uso de memória
+            window.updateRAM(); // Atualiza uso de memória
         } else {
             alert("Erro ao trocar o modelo.");
             loadModels();
@@ -662,7 +710,7 @@ window.unloadCurrentModel = async function() {
             btn.style.background = 'rgba(219, 68, 85, 0.15)';
 
             await loadModels(); // Atualiza a lista de modelos
-            updateRAM(); // Atualiza uso de memória
+            window.updateRAM(); // Atualiza uso de memória
 
             setTimeout(() => {
                 btnText.innerText = originalText;
@@ -690,5 +738,5 @@ window.toggleModal = toggleModal;
 
 // Inicializa a interface
 loadModels();
-updateRAM();
-setInterval(updateRAM, 5000);
+window.updateRAM();
+setInterval(window.updateRAM, 5000);
