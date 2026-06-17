@@ -83,6 +83,16 @@ STATIC_URL = 'static/'
 CORS_ALLOW_ALL_ORIGINS = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'api.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
 # Model Configuration (LMM)
 MODEL_PATH = os.getenv('MODEL_PATH', './models/seu_modelo_aqui.gguf')
 MMPROJ_PATH = os.getenv('MMPROJ_PATH', None)

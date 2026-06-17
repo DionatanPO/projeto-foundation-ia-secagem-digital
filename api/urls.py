@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import health_check, chat_inference, system_status, chat_stream, list_models, switch_model, clear_rag_storage, unload_model, remote_config_save, remote_config_load, remote_config_test, service_mode
+from .views import health_check, chat_inference, system_status, chat_stream, list_models, switch_model, clear_rag_storage, unload_model, remote_config_save, remote_config_load, remote_config_test, service_mode, auth_token
 
 urlpatterns = [
     path('health/', health_check, name='health-check'),
@@ -14,4 +14,5 @@ urlpatterns = [
     path('remote-config/load/', remote_config_load, name='remote-config-load'),
     path('remote-config/test/', remote_config_test, name='remote-config-test'),
     path('service-mode/', service_mode, name='service-mode'),
+    path('auth/token/', auth_token, name='auth-token'),
 ]

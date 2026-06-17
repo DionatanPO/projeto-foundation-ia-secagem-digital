@@ -1,7 +1,12 @@
-from rest_framework.decorators import api_view
+import jwt
+import datetime
+from django.conf import settings
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import StreamingHttpResponse, JsonResponse
+from django.contrib.auth import authenticate
 import logging
 import json
 import psutil
@@ -17,6 +22,7 @@ lmm_service = LMMService()
 remote_llm_service = RemoteLLMService()
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def health_check(request):
     return Response({"status": "ok", "message": "Django API is running"})
 
@@ -159,6 +165,7 @@ def chat_stream(request):
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def service_mode(request):
     """
     Retorna o modo atual (remoto ou local) baseado na config salva.
@@ -173,6 +180,36 @@ def service_mode(request):
         "local_model_loaded": lmm_service.model is not None,
         "local_model": lmm_service.get_current_model()
     })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def auth_token(request):
+    """
+    Gera um JWT para autenticação nas demais rotas.
+    Enviar: {"username": "...", "password": "..."}
+    Retorna: {"token": "..."}
+    """
+    username = request.data.get("username")
+    password = request.data.get("password")
+
+    if not username or not password:
+        return Response({"error": "username e password são obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = authenticate(username=username, password=password)
+    if not user:
+        return Response({"error": "Credenciais inválidas."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    payload = {
+        "user_id": user.id,
+        "username": user.username,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=7),
+        "iat": datetime.datetime.utcnow(),
+    }
+
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+    return Response({"token": token, "user": user.username})
 
 
 @api_view(['POST'])
