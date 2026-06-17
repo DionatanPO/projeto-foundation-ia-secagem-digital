@@ -50,6 +50,13 @@ function toggleModal(show) {
     }
 }
 
+window.switchTab = function(tabId, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active');
+};
+
 const chatArea = document.getElementById('chatArea');
 const promptInput = document.getElementById('promptInput');
 const sendBtn = document.getElementById('sendBtn');
@@ -381,144 +388,6 @@ window.copyMsg = async function(btn) {
     }
 };
 
-window.sendMessage = async function() {
-    if (isWaiting) {
-        if (currentAbortController) {
-            currentAbortController.abort();
-        }
-        return;
-    }
-
-    const text = promptInput.value.trim();
-    if (!text && !currentImageBase64) return;
-    dismissWelcome();
-
-    const temperature = parseFloat(document.getElementById('temperature')?.value) || 0.1;
-
-    const sysPromptEl = document.getElementById('systemPrompt');
-    const systemPrompt = sysPromptEl ? sysPromptEl.value : null;
-
-    const ragToggleEl = document.getElementById('ragToggle');
-    const useRag = ragToggleEl ? ragToggleEl.checked : true;
-
-    const payloadImage = currentImageBase64;
-
-    // Adiciona ao histórico local
-    chatHistory.push({ role: 'user', content: text || "[Imagem enviada]" });
-
-    chatArea.appendChild(createMsg(text, true, payloadImage));
-    promptInput.value = '';
-    promptInput.style.height = '40px';
-    removeImage();
-    
-    isWaiting = true;
-    currentAbortController = new AbortController();
-    setSendButtonStopState();
-    scrollBottom();
-    showLoader();
-
-    let botEl = null;
-
-    try {
-        const res = await fetch('/api/chat-stream/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: currentAbortController.signal,
-            body: JSON.stringify({
-                prompt: text || (payloadImage ? "Analise esta imagem." : ""),
-                temperature: temperature,
-                image_base64: payloadImage,
-                history: chatHistory.slice(0, -1),
-                system_prompt: systemPrompt,
-                use_rag: useRag
-            })
-        });
-
-        removeLoader();
-
-        if (!res.ok) {
-            const err = await res.json();
-            const errMsg = createMsg('**Erro do servidor:**\n```json\n' + JSON.stringify(err, null, 2) + '\n```', false);
-            chatArea.appendChild(errMsg);
-            return;
-        }
-
-        botEl = createMsg('', false);
-        chatArea.appendChild(botEl);
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop(); // Guarda a linha incompleta
-
-            for (const line of lines) {
-                if (!line.trim()) continue;
-                try {
-                    const packet = JSON.parse(line);
-                    const event = packet.event;
-                    const data = packet.data;
-                    let bubble = botEl.querySelector('.msg-bubble');
-
-                    if (event === 'thought') {
-                        let thinkCard = bubble.querySelector('.think-block');
-                        if (!thinkCard) {
-                            bubble.insertAdjacentHTML('afterbegin', thinkBlockHTML('', 'Processo de Raciocínio', true));
-                            thinkCard = bubble.querySelector('.think-block');
-                        }
-                        thinkCard.querySelector('.think-scroll').innerText += data;
-                    } else if (event === 'message') {
-                        let thinkCard = bubble.querySelector('.think-block');
-                        if (thinkCard) thinkCard.classList.remove('expanded');
-                        
-                        botEl.dataset.rawText += data;
-                        bubble.innerHTML = renderBotContent(botEl.dataset.rawText, true);
-                    } else if (event === 'metrics') {
-                        let badgeContainer = document.createElement('div');
-                        badgeContainer.innerHTML = `<div class="perf-badge">
-                            <span><b>${data.tps.toFixed(2)}</b> t/s</span>
-                            <div class="perf-sep"></div>
-                            <span><b>${data.tokens}</b> tokens</span>
-                            <div class="perf-sep"></div>
-                            <span><b>${data.duration.toFixed(2)}s</b></span>
-                        </div>`;
-                        botEl.querySelector('.msg-body').appendChild(badgeContainer.firstChild);
-                    } else if (event === 'done') {
-                        console.log('Stream concluído com sucesso.');
-                    }
-                } catch (e) { 
-                    console.error('Erro ao processar JSON:', e, 'Linha:', line); 
-                }
-            }
-        }
-        finalizeBotMessage(botEl);
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            console.log('Stream aborted');
-            if (botEl) {
-                finalizeBotMessage(botEl);
-            } else {
-                removeLoader();
-            }
-        } else {
-            console.error(err);
-            removeLoader();
-            const errEl = createMsg('**Erro de conexão:** Não foi possível acessar o streaming.', false);
-            chatArea.appendChild(errEl);
-        }
-    } finally {
-        isWaiting = false;
-        currentAbortController = null;
-        resetSendButton();
-        scrollBottom();
-    }
-};
-
 window.updateRAM = async function() {
     try {
         const response = await fetch('/api/status/');
@@ -736,7 +605,250 @@ window.unloadCurrentModel = async function() {
 
 window.toggleModal = toggleModal;
 
+// ── Modelo Remoto ──
+async function saveRemoteConfig() {
+    const config = {
+        enabled: document.getElementById('remoteToggle').checked,
+        api_url: document.getElementById('remoteApiUrl').value.trim(),
+        model: document.getElementById('remoteModel').value.trim(),
+    };
+
+    const btn = document.getElementById('remoteSaveBtn');
+    const originalText = btn.querySelector('span').innerText;
+    btn.querySelector('span').innerText = 'Salvando...';
+    btn.disabled = true;
+
+    try {
+        const resp = await fetch('/api/remote-config/save/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ config })
+        });
+        if (resp.ok) {
+            localStorage.setItem('remoteConfig', JSON.stringify(config));
+            btn.querySelector('span').innerText = 'Salvo!';
+            btn.style.borderColor = 'var(--primary)';
+            setTimeout(() => {
+                btn.querySelector('span').innerText = originalText;
+                btn.disabled = false;
+                btn.style.borderColor = '';
+            }, 2000);
+        } else {
+            alert('Erro ao salvar configuração.');
+            btn.querySelector('span').innerText = originalText;
+            btn.disabled = false;
+        }
+    } catch (err) {
+        localStorage.setItem('remoteConfig', JSON.stringify(config));
+        btn.querySelector('span').innerText = 'Salvo (local)';
+        setTimeout(() => {
+            btn.querySelector('span').innerText = originalText;
+            btn.disabled = false;
+        }, 2000);
+    }
+}
+
+async function testRemoteConnection() {
+    const config = {
+        enabled: document.getElementById('remoteToggle').checked,
+        api_url: document.getElementById('remoteApiUrl').value.trim(),
+        model: document.getElementById('remoteModel').value.trim(),
+    };
+
+    const statusEl = document.getElementById('remoteStatus');
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = '<span style="color: var(--text-dim);">Testando conexão...</span>';
+
+    try {
+        const resp = await fetch('/api/remote-config/test/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ config })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            const ver = data.version ? ` (v${data.version})` : '';
+            statusEl.innerHTML = `<span style="color: #4caf50;">✓ OpenCode conectado${ver}!</span>`;
+            statusEl.style.background = 'rgba(76, 175, 80, 0.08)';
+            statusEl.style.border = '1px solid rgba(76, 175, 80, 0.2)';
+        } else {
+            statusEl.innerHTML = `<span style="color: #db4455;">✗ Erro: ${data.error}</span>`;
+            statusEl.style.background = 'rgba(219, 68, 85, 0.08)';
+            statusEl.style.border = '1px solid rgba(219, 68, 85, 0.2)';
+        }
+    } catch (err) {
+        statusEl.innerHTML = `<span style="color: #db4455;">✗ Erro de conexão: ${err.message}</span>`;
+        statusEl.style.background = 'rgba(219, 68, 85, 0.08)';
+        statusEl.style.border = '1px solid rgba(219, 68, 85, 0.2)';
+    }
+}
+
+function loadRemoteConfig() {
+    function apply(cfg) {
+        if (!cfg || !cfg.api_url) return;
+        document.getElementById('remoteToggle').checked = cfg.enabled || false;
+        document.getElementById('remoteApiUrl').value = cfg.api_url;
+        document.getElementById('remoteModel').value = cfg.model || '';
+    }
+    fetch('/api/remote-config/load/')
+        .then(r => r.json())
+        .then(config => { apply(config); if (!config?.api_url) { const s = localStorage.getItem('remoteConfig'); if (s) { try { apply(JSON.parse(s)); } catch (e) {} } } })
+        .catch(() => { const s = localStorage.getItem('remoteConfig'); if (s) { try { apply(JSON.parse(s)); } catch (e) {} } });
+}
+
+window.sendMessage = async function() {
+    if (isWaiting) {
+        if (currentAbortController) {
+            currentAbortController.abort();
+        }
+        return;
+    }
+
+    const text = promptInput.value.trim();
+    if (!text && !currentImageBase64) return;
+    dismissWelcome();
+
+    const temperature = parseFloat(document.getElementById('temperature')?.value) || 0.1;
+
+    const sysPromptEl = document.getElementById('systemPrompt');
+    const systemPrompt = sysPromptEl ? sysPromptEl.value : null;
+
+    const ragToggleEl = document.getElementById('ragToggle');
+    const useRag = ragToggleEl ? ragToggleEl.checked : true;
+
+    // Remote config
+    const remoteToggleEl = document.getElementById('remoteToggle');
+    const useRemote = remoteToggleEl ? remoteToggleEl.checked : false;
+    let remoteConfig = {};
+    if (useRemote) {
+        remoteConfig = {
+            enabled: true,
+            api_url: document.getElementById('remoteApiUrl').value.trim(),
+            model: document.getElementById('remoteModel').value.trim(),
+        };
+    }
+
+    const payloadImage = currentImageBase64;
+
+    chatHistory.push({ role: 'user', content: text || "[Imagem enviada]" });
+
+    chatArea.appendChild(createMsg(text, true, payloadImage));
+    promptInput.value = '';
+    promptInput.style.height = '40px';
+    removeImage();
+
+    isWaiting = true;
+    currentAbortController = new AbortController();
+    setSendButtonStopState();
+    scrollBottom();
+    showLoader();
+
+    let botEl = null;
+
+    try {
+        const res = await fetch('/api/chat-stream/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: currentAbortController.signal,
+            body: JSON.stringify({
+                prompt: text || (payloadImage ? "Analise esta imagem." : ""),
+                temperature: temperature,
+                image_base64: payloadImage,
+                history: chatHistory.slice(0, -1),
+                system_prompt: systemPrompt,
+                use_rag: useRag,
+                use_remote: useRemote,
+                remote_config: remoteConfig
+            })
+        });
+
+        removeLoader();
+
+        if (!res.ok) {
+            const err = await res.json();
+            const errMsg = createMsg('**Erro do servidor:**\n```json\n' + JSON.stringify(err, null, 2) + '\n```', false);
+            chatArea.appendChild(errMsg);
+            return;
+        }
+
+        botEl = createMsg('', false);
+        chatArea.appendChild(botEl);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const packet = JSON.parse(line);
+                    const event = packet.event;
+                    const data = packet.data;
+                    let bubble = botEl.querySelector('.msg-bubble');
+
+                    if (event === 'thought') {
+                        let thinkCard = bubble.querySelector('.think-block');
+                        if (!thinkCard) {
+                            bubble.insertAdjacentHTML('afterbegin', thinkBlockHTML('', 'Processo de Raciocínio', true));
+                            thinkCard = bubble.querySelector('.think-block');
+                        }
+                        thinkCard.querySelector('.think-scroll').innerText += data;
+                    } else if (event === 'message') {
+                        let thinkCard = bubble.querySelector('.think-block');
+                        if (thinkCard) thinkCard.classList.remove('expanded');
+
+                        botEl.dataset.rawText += data;
+                        bubble.innerHTML = renderBotContent(botEl.dataset.rawText, true);
+                    } else if (event === 'metrics') {
+                        let badgeContainer = document.createElement('div');
+                        badgeContainer.innerHTML = `<div class="perf-badge">
+                            <span><b>${data.tps.toFixed(2)}</b> t/s</span>
+                            <div class="perf-sep"></div>
+                            <span><b>${data.tokens}</b> tokens</span>
+                            <div class="perf-sep"></div>
+                            <span><b>${data.duration.toFixed(2)}s</b></span>
+                        </div>`;
+                        botEl.querySelector('.msg-body').appendChild(badgeContainer.firstChild);
+                    } else if (event === 'done') {
+                        console.log('Stream concluído com sucesso.');
+                    }
+                } catch (e) {
+                    console.error('Erro ao processar JSON:', e, 'Linha:', line);
+                }
+            }
+        }
+        finalizeBotMessage(botEl);
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            console.log('Stream aborted');
+            if (botEl) {
+                finalizeBotMessage(botEl);
+            } else {
+                removeLoader();
+            }
+        } else {
+            console.error(err);
+            removeLoader();
+            const errEl = createMsg('**Erro de conexão:** Não foi possível acessar o streaming.', false);
+            chatArea.appendChild(errEl);
+        }
+    } finally {
+        isWaiting = false;
+        currentAbortController = null;
+        resetSendButton();
+        scrollBottom();
+    }
+};
+
 // Inicializa a interface
 loadModels();
+loadRemoteConfig();
 window.updateRAM();
 setInterval(window.updateRAM, 5000);
