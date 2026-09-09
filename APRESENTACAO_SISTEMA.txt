@@ -1,0 +1,410 @@
+================================================================================
+                      AGROMIND AI - APRESENTAÇÃO DO SISTEMA
+================================================================================
+
+Data de Apresentação: Setembro 2026
+Versão: 1.0
+Plataforma: Windows / Linux / macOS
+
+================================================================================
+1. VISÃO GERAL
+================================================================================
+
+O AgroMind AI é uma solução de assistência técnica inteligente voltada
+para o setor agrícola e industrial, com foco em:
+
+  • Monitoramento de silos
+  • Otimização de processos de secagem de grãos
+  • Assistência técnica para operadores, agrônomos e equipes de manutenção
+
+O sistema funciona 100% de forma local (on-premise), garantindo:
+
+  ✓ Privacidade total dos dados
+  ✓ Zero latência nas respostas
+  ✓ Alta disponibilidade, mesmo em locais remotos sem internet
+  ✓ Funcionamento offline completo
+
+================================================================================
+2. ARQUITETURA DO SISTEMA
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        ARQUITETURA GERAL                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────┐    HTTP/REST    ┌──────────────────────────────────────┐  │
+│  │   Frontend   │◄──────────────►│        API Gateway (Django)          │  │
+│  │  HTML/CSS/JS │    Streaming    │        Django REST Framework         │  │
+│  └──────────────┘                 └──────────┬───────────────────────────┘  │
+│                                              │                             │
+│                           ┌──────────────────┼──────────────────┐          │
+│                           │                  │                  │          │
+│                           ▼                  ▼                  ▼          │
+│                  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    │
+│                  │ LMMService  │    │ RagService  │    │ RemoteLLM   │    │
+│                  │ (llama.cpp) │    │ (LlamaIndex)│    │  Service    │    │
+│                  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘    │
+│                         │                  │                  │          │
+│                         ▼                  ▼                  ▼          │
+│                  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    │
+│                  │  Modelos    │    │ Documentos  │    │  OpenCode   │    │
+│                  │    GGUF     │    │  (RAG)      │    │   Server    │    │
+│                  └─────────────┘    └─────────────┘    └─────────────┘    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+O sistema possui dois modos de operação:
+
+  MODO LOCAL: Utiliza llama-cpp-python para rodar modelos GGUF quantizados
+              diretamente na CPU ou GPU (CUDA/Vulkan/Metal)
+
+  MODO REMOTO: Proxifica requisições para um servidor OpenCode
+              (API compatível com OpenAI), suportando Claude, GPT-4o, etc.
+
+================================================================================
+3. TECNOLOGIAS UTILIZADAS
+================================================================================
+
+┌────────────────────┬──────────────────────────────────────────────────────┐
+│ Categoria          │ Tecnologias                                          │
+├────────────────────┼──────────────────────────────────────────────────────┤
+│ Backend            │ Python 3.14, Django 6.0.5, Django REST Framework     │
+│ Frontend           │ HTML5, CSS3 (vanilla), JavaScript ES6+               │
+│ Engine de IA       │ llama-cpp-python (llama.cpp), modelos GGUF           │
+│ IA Remota          │ OpenCode Server (API OpenAI-compatible)              │
+│ RAG                │ LlamaIndex, HuggingFace Embeddings                   │
+│ Modelo de Embedding│ paraphrase-multilingual-MiniLM-L12-v2 (multilingual) │
+│ Monitoramento      │ psutil (telemetria de RAM/CPU)                       │
+│ Banco de Dados     │ SQLite3 (Django ORM)                                 │
+│ Markdown           │ marked.js + highlight.js (syntax highlighting)       │
+│ Voz                │ Web Speech API (nativo do navegador, pt-BR)          │
+│ Fontes             │ Outfit (UI), JetBrains Mono (código/métricas)        │
+└────────────────────┴──────────────────────────────────────────────────────┘
+
+================================================================================
+4. FUNCIONALIDADES PRINCIPAIS
+================================================================================
+
+4.1 INTERFACE DE CHAT INTELIGENTE
+─────────────────────────────────
+  • Layout inspirado no Gemini/ChatGPT com visual moderno
+  • Suporte a Markdown completo (tabelas, listas, cabeçalhos, código)
+  • Blocos de código com syntax highlighting (highlight.js)
+  • Cards de raciocínio expansíveis (processo de pensamento da IA)
+  • Badge de métricas de performance (tokens/segundo, total de tokens, duração)
+  • Indicador de digitação animado
+  • Copiar respostas com um clique
+  • Histórico de conversa (últimas 10 mensagens como contexto)
+
+4.2 ENTRADA MULTIMODAL
+──────────────────────
+  • Texto: Campo de entrada com auto-expansão
+  • Imagem: Upload de fotos para análise visual (silos, medições, painéis)
+  • Voz: Ditado por voz em português (Web Speech API do navegador)
+  • Atalhos: Enter para enviar, Shift+Enter para nova linha
+
+4.3 MODO LOCAL (PRIVACIDADE TOTAL)
+───────────────────────────────────
+  • Modelos GGUF quantizados rodando localmente
+  • Suporte a CPU e GPU (CUDA NVIDIA, Vulkan AMD/Intel, Metal Apple)
+  • Troca dinâmica de modelos sem reiniciar o sistema
+  • Descarregamento de modelos para liberar RAM/VRAM
+  • Monitoramento em tempo real do consumo de memória
+
+4.4 MODO REMOTO (FLEXIBILIDADE)
+───────────────────────────────
+  • Conexão com servidores OpenCode (API compatível OpenAI)
+  • Suporte a modelos: Claude, GPT-4o, Gemini, e outros
+  • Teste de conexão com status em tempo real
+  • Configuração persistente (URL, modelo, toggle ativo/inativo)
+  • RAG também funciona no modo remoto
+
+4.5 RAG - BASE DE CONHECIMENTO
+──────────────────────────────
+  • Indexação automática de documentos na pasta documents/
+  • Embeddings semânticos multilíngues (português otimizado)
+  • Divisão inteligente de texto (chunks de 1500 tokens, overlap de 300)
+  • Decomposição multi-query para consultas complexas
+  • Deduplicação de resultados por relevância
+  • Reconstrução do índice com um clique
+
+4.6 INTERFACE DE CONFIGURAÇÕES (3 ABAS)
+────────────────────────────────────────
+  Aba 1 - Modelo Local:
+    • Seletor CPU/GPU
+    • Lista de modelos disponíveis (auto-detectada da pasta models/)
+    • Botão de troca de modelo com animação de loading
+    • Botão para descarregar modelo e liberar memória
+    • Toggle de ativação do RAG
+    • Botão para limpar e recarregar base vetorial
+    • Slider de criatividade/temperatura (0.0 a 1.0)
+    • Campo de diretriz do sistema (system prompt customizável)
+    • Aviso de privacidade (dados 100% locais)
+
+  Aba 2 - Modelo Remoto:
+    • Toggle de ativação do modelo remoto
+    • Campo de URL do servidor OpenCode
+    • Campo de identificador do modelo
+    • Botão de salvar configuração
+    • Botão de teste de conexão
+    • Comando copiável: opencode serve --port 4096
+    • Aviso sobre envio de dados para servidores externos
+
+  Aba 3 - Aparência:
+    • Toggle entre modo escuro e claro
+    • Preferência salva automaticamente no navegador
+    • Detecção automática do tema do sistema
+
+4.7 SEGURANÇA E AUTENTICAÇÃO
+────────────────────────────
+  • Sistema de chave de licença (APP_KEY) via variável de ambiente
+  • Página de login com campo de chave de acesso
+  • Sessões baseadas em Django
+  • Dados nunca saem da máquina (modo local)
+
+================================================================================
+5. ENDPOINTS DA API
+================================================================================
+
+┌────────┬───────────────────────────────┬───────────────────────────────────┐
+│ Método │ Endpoint                      │ Descrição                         │
+├────────┼───────────────────────────────┼───────────────────────────────────┤
+│ GET    │ /api/health/                  │ Health check do servidor          │
+│ GET    │ /api/status/                  │ Consumo de RAM em tempo real      │
+│ GET    │ /api/models/                  │ Lista modelos GGUF disponíveis    │
+│ GET    │ /api/service-mode/            │ Modo atual (local/remoto)         │
+│ POST   │ /api/chat/                    │ Chat completo (sem streaming)     │
+│ POST   │ /api/chat-stream/             │ Chat com streaming (NDJSON)       │
+│ POST   │ /api/switch-model/            │ Troca dinâmica de modelo          │
+│ POST   │ /api/unload-model/            │ Descarrega modelo da memória      │
+│ POST   │ /api/clear-rag/               │ Limpa e reconstrói base vetorial  │
+│ POST   │ /api/remote-config/save/      │ Salva config do modelo remoto     │
+│ GET    │ /api/remote-config/load/      │ Carrega config do modelo remoto   │
+│ POST   │ /api/remote-config/test/      │ Testa conexão com OpenCode        │
+└────────┴───────────────────────────────┴───────────────────────────────────┘
+
+Formato de Streaming (NDJSON):
+  {"event": "thought",   "data": "..."}   ← Raciocínio da IA
+  {"event": "message",   "data": "..."}   ← Resposta do modelo
+  {"event": "metrics",   "data": {...}}   ← Métricas de performance
+  {"event": "done",      "data": null}    ← Fim do streaming
+
+================================================================================
+6. MODELOS DE DADOS
+================================================================================
+
+O sistema utiliza uma única tabela principal:
+
+  RemoteConfig (Configuração do Modelo Remoto)
+  ┌────────────┬─────────────┬────────────────────────────────────────────┐
+  │ Campo      │ Tipo        │ Descrição                                  │
+  ├────────────┼─────────────┼────────────────────────────────────────────┤
+  │ id         │ BigAutoField│ Chave primária auto-incrementada           │
+  │ enabled    │ Boolean     │ Modelo remoto ativo ou inativo             │
+  │ api_url    │ Char(500)   │ URL do servidor OpenCode                   │
+  │ model      │ Char(200)   │ Identificador do modelo                    │
+  │ updated_at │ DateTime    │ Última modificação (auto)                  │
+  └────────────┴─────────────┴────────────────────────────────────────────┘
+
+Banco de dados: SQLite3 (db.sqlite3)
+Armazenamento RAG: Pasta storage/ (JSON via LlamaIndex StorageContext)
+
+================================================================================
+7. SERVIÇOS PRINCIPAIS
+================================================================================
+
+7.1 LMMService (Serviço de Modelo Local)
+─────────────────────────────────────────
+  • Padrão Singleton (uma instância, um modelo na memória)
+  • Carregamento de modelos GGUF via llama-cpp-python
+  • Detecção automática de GPU/CPU
+  • Suporte multimodal (visão com CLIP mmproj)
+  • Patch automático de templates de thinking (Qwen3.5)
+  • Streaming com eventos NDJSON estruturados
+  • Gerenciamento agressivo de memória (GC explicito)
+
+7.2 RagService (Serviço de Base de Conhecimento)
+────────────────────────────────────────────────
+  • Padrão Singleton
+  • Modelo de embedding: paraphrase-multilingual-MiniLM-L12-v2
+  • Divisão de texto: SentenceSplitter (1500 tokens, 300 overlap)
+  • Limpeza de documentos (remoção de números de página)
+  • Persistência em disco (storage/)
+  • Decomposição multi-query para consultas complexas
+  • Resiliência no Windows (tratamento de file locks)
+
+7.3 RemoteLLMService (Serviço de Modelo Remoto)
+───────────────────────────────────────────────
+  • Padrão Singleton
+  • Integração com OpenCode Server (API OpenAI-compatible)
+  • Gerenciamento de sessões (criação, envio, abort)
+  • Persistência de configuração (RemoteConfig)
+  • Teste de conectividade
+  • Suporte a RAG mesmo no modo remoto
+  • Formato de streaming NDJSON padronizado
+
+================================================================================
+8. MODELO INSTALADO
+================================================================================
+
+Pasta models/ contém:
+
+  • Qwen_Qwen3.5-2B-Q8_0.gguf
+    - Modelo Qwen 3.5 com 2 bilhões de parâmetros
+    - Quantização Q8_0 (8-bit, alta qualidade)
+    - Otimizado para inferência local em CPU/GPU
+
+  Para adicionar novos modelos:
+    1. Baixe o arquivo .gguf desejado
+    2. Coloque na pasta models/
+    3. O sistema detecta automaticamente na interface
+
+================================================================================
+9. CONFIGURAÇÃO DO AMBIENTE (.env)
+================================================================================
+
+┌────────────────────┬──────────────────────────────────┬───────────────────┐
+│ Variável           │ Valor Atual                      │ Descrição         │
+├────────────────────┼──────────────────────────────────┼───────────────────┤
+│ N_THREADS          │ 6                                │ Threads CPU       │
+│ N_CTX              │ 8192                             │ Janela de contexto│
+│ USE_FLASH_ATTN     │ True                             │ Flash Attention   │
+│ MODEL_PATH         │ ./models/seu_modelo_aqui.gguf    │ Modelo padrão     │
+│ APP_KEY            │ secagemdigitalkey                │ Chave de licença  │
+│ MMPROJ_PATH        │ (configurável)                   │ Modelo CLIP (visão│
+│ N_GPU_LAYERS       │ (configurável)                   │ Camadas GPU       │
+│ HF_TOKEN           │ (configurável)                   │ Token HuggingFace │
+└────────────────────┴──────────────────────────────────┴───────────────────┘
+
+================================================================================
+10. COMO UTILIZAR O SISTEMA
+================================================================================
+
+10.1 INSTALAÇÃO
+───────────────
+  1. Instale as dependências:
+     pip install -r requirements.txt
+
+  2. Configure o arquivo .env com suas preferências
+
+  3. Coloque os modelos GGUF na pasta models/
+
+  4. Adicione documentos técnicos na pasta documents/ (para RAG)
+
+  5. Execute as migrações:
+     python manage.py migrate
+
+  6. Inicie o servidor:
+     python manage.py runserver
+
+  7. Acesse: http://localhost:8000/
+
+10.2 USO BÁSICO
+────────────────
+  1. Na página de login, insira a chave de licença (APP_KEY)
+  2. No chat, digite sua pergunta ou use os chips de exemplo
+  3. Para enviar imagens, clique no botão de anexar imagem
+  4. Para ditado por voz, clique no botão de microfone
+  5. Acesse as configurações pelo botão na barra lateral
+
+10.3 MODO REMOTO
+────────────────
+  1. Abra um terminal e execute:
+     opencode serve --port 4096
+
+  2. Nas configurações, aba "Modelo Remoto":
+     - Ative o toggle "Ativar Modelo Remoto"
+     - Configure a URL: http://127.0.0.1:4096
+     - Informe o modelo (ex: anthropic/claude-sonnet-4-5)
+     - Clique em "Salvar" e depois "Testar"
+
+10.4 RAG (BASE DE CONHECIMENTO)
+────────────────────────────────
+  1. Coloque documentos (.txt, .pdf, .md) na pasta documents/
+  2. Nas configurações, ative o toggle "Base de Conhecimento (RAG)"
+  3. Para reconstruir o índice, clique em "Limpar & Recarregar RAG"
+  4. O sistema automaticamente consultará os documentos antes de responder
+
+================================================================================
+11. DIFERENCIAIS COMPETITIVOS
+================================================================================
+
+  ✓ 100% LOCAL: Nenhum dado sai da máquina do usuário
+  ✓ MODO DUPLO: Flexibilidade entre local e remoto
+  ✓ PRIVACITY BY DESIGN: Arquitetura construída para dados sensíveis
+  ✓ OFFLINE: Funciona sem conexão com a internet
+  ✓ MULTILINGUE: Embeddings otimizados para português
+  ✓ MULTIMODAL: Análise de imagens + texto + voz
+  ✓ GPU FLEXÍVEL: Suporta NVIDIA, AMD, Intel e Apple
+  • PERFORMANCE: Métricas de tokens/segundo em tempo real
+  • CUSTOMIZÁVEL: System prompt e temperatura configuráveis
+  • MODERNO: Interface inspirada nos melhores assistentes de IA
+
+================================================================================
+12. ESTRUTURA DE DIRETÓRIOS
+================================================================================
+
+Projeto-SECAGEMDIGITAL-AI/
+├── .env                    # Variáveis de ambiente
+├── .gitignore              # Arquivos ignorados pelo Git
+├── db.sqlite3              # Banco de dados SQLite
+├── manage.py               # Script de gerenciamento Django
+├── requirements.txt        # Dependências Python
+├── README.md               # Documentação principal
+├── DOCUMENTACAO.md         # Documentação técnica detalhada
+├── APRESENTACAO_SISTEMA.txt # Este arquivo
+│
+├── api/                    # Aplicação Django (backend)
+│   ├── models.py           # Modelos de dados
+│   ├── views.py            # Endpoints da API
+│   ├── urls.py             # Rotas da API
+│   ├── services/           # Serviços de negócio
+│   │   ├── lmm_service.py      # Serviço de modelo local
+│   │   ├── rag_service.py      # Serviço de RAG
+│   │   └── remote_llm_service.py # Serviço de modelo remoto
+│   └── templates/          # Templates Django
+│
+├── core/                   # Configurações do projeto Django
+│   ├── settings.py         # Configurações gerais
+│   ├── urls.py             # Rotas principais
+│   └── wsgi.py             # WSGI para produção
+│
+├── model_ui/               # Interface do usuário
+│   ├── templates/
+│   │   └── model_ui/
+│   │       ├── index.html      # Página principal (chat)
+│   │       └── login.html      # Página de login
+│   └── static/
+│       └── model_ui/
+│           ├── css/style.css   # Estilos da interface
+│           └── js/script.js    # Lógica do frontend
+│
+├── models/                 # Modelos GGUF (arquivos de IA)
+│   └── Qwen_Qwen3.5-2B-Q8_0.gguf
+│
+├── documents/              # Documentos para RAG
+│
+├── storage/                # Armazenamento do índice vetorial
+│
+└── venv/                   # Ambiente virtual Python
+
+================================================================================
+13. CONCLUSÃO
+================================================================================
+
+O Secagem Digital AI representa uma solução completa e moderna para assistência
+técnica no setor agrícola, combinando:
+
+  • Inteligência Artificial de ponta (locais e remotos)
+  • Privacidade absoluta dos dados
+  • Interface intuitiva e profissional
+  • Flexibilidade de configuração
+  • Performance otimizada para hardware local
+
+O sistema está pronto para operação em ambientes industriais e agrícolas,
+oferecendo suporte técnico 24/7 com base em conhecimento científico
+especializado em secagem e armazenamento de grãos.
+
+================================================================================
+                        FIM DA APRESENTAÇÃO
+================================================================================

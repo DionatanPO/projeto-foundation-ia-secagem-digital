@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secagem Digital AI</title>
+    <title>AgroMind AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -34,7 +34,7 @@
                     </svg>
                 </div>
                 <div class="brand-text">
-                    <span class="brand-name">Secagem Digital</span>
+                    <span class="brand-name">AgroMind</span>
                     <span class="brand-sub">AI Assistant</span>
                 </div>
             </div>
@@ -374,6 +374,38 @@
                         </div>
 
                         <div id="remoteStatus" style="margin-top: 12px; padding: 12px; border-radius: 12px; font-size: 13px; display: none;"></div>
+
+                        <div class="copyable-command-card">
+                            <div class="copyable-command-header">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                                    <line x1="8" y1="21" x2="16" y2="21"/>
+                                    <line x1="12" y1="17" x2="12" y2="21"/>
+                                </svg>
+                                <span>Como manter o servidor rodando</span>
+                            </div>
+                            <p class="copyable-command-desc">
+                                Execute o comando abaixo no terminal para iniciar o servidor OpenCode. O servidor deve permanecer aberto enquanto usar o modelo remoto.
+                            </p>
+                            <div class="copyable-command-box">
+                                <code id="opencodeCommand">opencode serve --port 4096</code>
+                                <button class="copy-command-btn" onclick="copyCommand()" title="Copiar comando">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                    </svg>
+                                    <span>Copiar</span>
+                                </button>
+                            </div>
+                            <div class="copyable-command-tip">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="12" y1="16" x2="12" y2="12"/>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                                </svg>
+                                <span>Dica: Use <code>--hostname 0.0.0.0</code> para acessar de outros dispositivos na rede.</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

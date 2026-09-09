@@ -847,6 +847,29 @@ window.sendMessage = async function() {
     }
 };
 
+window.copyCommand = async function() {
+    const commandEl = document.getElementById('opencodeCommand');
+    const btn = document.querySelector('.copy-command-btn');
+    const span = btn.querySelector('span');
+
+    if (!commandEl || !btn) return;
+
+    try {
+        await navigator.clipboard.writeText(commandEl.textContent);
+        btn.classList.add('copied');
+        span.innerText = 'Copiado!';
+        btn.querySelector('svg').innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            span.innerText = 'Copiar';
+            btn.querySelector('svg').innerHTML = '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
+        }, 2000);
+    } catch (err) {
+        console.error('Erro ao copiar comando:', err);
+    }
+};
+
 // Inicializa a interface
 loadModels();
 loadRemoteConfig();

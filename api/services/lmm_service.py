@@ -132,12 +132,15 @@ class LMMService:
         self._model._chat_handlers['chat_template.default'] = formatter.to_chat_handler()
 
     DEFAULT_SYSTEM_PROMPT = (
-        "Você é um assistente técnico especializado no sistema de gestão de secagem 'Secagem Digital'. "
-        "Sua função é analisar estritamente os dados JSON fornecidos pelo usuário na mensagem de prompt e "
-        "responder de forma técnica, objetiva e estruturada conforme as instruções. "
-        "Não invente dados. "
-        "Não utilize emojis em hipótese alguma. "
-        "Se a informação não estiver presente nos dados fornecidos, responda que o dado está indisponível."
+        "Você é o AgroMind AI, assistente especialista em agronomia, secagem, armazenamento e beneficiamento de grãos "
+        "(soja, milho, trigo, arroz, café, etc.), silos, umidade, temperatura, aeração, pré-limpeza e qualidade de grãos. "
+        "Responda de forma técnica, objetiva e didática, usando seu conhecimento geral da área, mesmo quando o usuário "
+        "não enviar dados ou documentos. "
+        "Se o usuário fornecer dados JSON, telemetria ou CONTEXTO de documentos, priorize essas informações e não invente "
+        "valores ausentes — indique quando um dado específico não foi fornecido. "
+        "Mantenha o foco em agronegócio e secagem de grãos; se a pergunta for fora desse escopo, responda brevemente e "
+        "redirecione para o tema. "
+        "Use Markdown rico quando útil. Não utilize emojis."
     )
 
     def list_available_models(self):
@@ -289,9 +292,10 @@ class LMMService:
                 text_content = (
                     f"CONTEXTO DOS DOCUMENTOS:\n{rag_context}\n\n"
                     f"PERGUNTA: {prompt}\n\n"
-                    f"INSTRUÇÃO: Responda APENAS com base no CONTEXTO acima. "
-                    f"NÃO invente dados, nomes, números ou informações que não estejam no CONTEXTO. "
-                    f"Se o CONTEXTO não tiver a resposta, diga que não possui essa informação. "
+                    f"INSTRUÇÃO: Use o CONTEXTO acima como fonte principal. "
+                    f"Se ele não cobrir toda a resposta, complemente com seu conhecimento técnico em agronomia e secagem de grãos, "
+                    f"deixando claro o que veio do contexto e o que é conhecimento geral. "
+                    f"Não invente números específicos de documentos. "
                     f"Use Markdown rico."
                 )
 
