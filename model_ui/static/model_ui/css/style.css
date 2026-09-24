@@ -35,7 +35,7 @@
     --text-dim: #8e918f;
     --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
 
-    --msg-user-bg: #2b2c2e;
+    --msg-user-bg: rgba(30, 94, 46, 0.38);
     --msg-ai-bg: transparent;
 }
 
@@ -64,7 +64,7 @@
     --text-dim: #757575;
     --shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
 
-    --msg-user-bg: #f0f2f5;
+    --msg-user-bg: rgba(30, 70, 32, 0.14);
     --msg-ai-bg: transparent;
 }
 
@@ -104,6 +104,7 @@ body {
 .brand {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 12px;
     padding: 0 0 16px;
     border-bottom: 1px solid var(--border);
@@ -130,13 +131,17 @@ body {
 .brand-text {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    width: 100%;
 }
 
 .brand-name {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 22px;
+    font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--text);
+    text-align: center;
+    width: 100%;
 }
 
 .brand-sub {
@@ -194,6 +199,157 @@ body {
     width: 18px;
     height: 18px;
     flex-shrink: 0;
+}
+
+.new-chat-plus {
+    margin-left: auto;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1;
+    opacity: 0.7;
+}
+
+.history-nav {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    max-height: 100%;
+    padding-bottom: 8px;
+}
+
+.history-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.history-empty {
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 8px 12px;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1px solid transparent;
+    user-select: none;
+    min-width: 0;
+}
+
+.history-item:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+.history-item.active {
+    background: var(--surface-2);
+    color: var(--text);
+    border-color: var(--border);
+}
+
+.history-icon {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-3);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.history-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+    max-width: 15px;
+    max-height: 15px;
+    display: block;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.history-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.history-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.history-date {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+}
+
+.history-delete,
+.history-rename {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.history-item:hover .history-delete,
+.history-item:hover .history-rename {
+    opacity: 1;
+}
+
+.history-delete:hover {
+    color: #db4455;
+    background: rgba(219, 68, 85, 0.1);
+}
+
+.history-rename:hover {
+    color: var(--accent);
+    background: var(--accent-bg);
+}
+
+.history-rename-input {
+    width: 100%;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    background: var(--surface-3);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 3px 8px;
+    outline: none;
+    min-width: 0;
 }
 
 /* Configurações da Sidebar */
@@ -672,7 +828,7 @@ textarea.sys-input {
     color: var(--text-muted);
 }
 
-/* Estilo da Bolha do Usuário (Alinhada e limpa) */
+/* Estilo da Bolha do Usuário (verde escuro transparente) */
 .message-wrap.user .msg-bubble {
     background: var(--msg-user-bg);
     color: var(--text);
@@ -682,7 +838,7 @@ textarea.sys-input {
     display: inline-block;
     max-width: 85%;
     box-shadow: var(--shadow);
-    border: 1px solid var(--border);
+    border: 1px solid rgba(46, 125, 62, 0.35);
 }
 
 .message-wrap.user .msg-body {
@@ -693,6 +849,11 @@ textarea.sys-input {
 
 .message-wrap.user .msg-meta {
     justify-content: flex-end;
+}
+
+.message-wrap.user .msg-meta-user {
+    margin-bottom: 0;
+    margin-top: 6px;
 }
 
 /* ── ELEMENTOS RENDERIZADOS DENTRO DA MENSAGEM ── */
@@ -955,6 +1116,47 @@ textarea.sys-input {
 
 .preview-remove:hover {
     color: #db4455;
+}
+
+.doc-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.doc-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 220px;
+    padding: 6px 6px 6px 12px;
+    background: var(--accent-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--text);
+}
+
+.doc-chip-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.doc-chip-remove {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.doc-chip-remove:hover {
+    color: #db4455;
+    background: rgba(219, 68, 85, 0.1);
 }
 
 .input-box {
@@ -1318,10 +1520,57 @@ kbd {
     color: var(--text);
 }
 
-/* Responsividade */
-@media (max-width: 720px) {
+/* Hamburger (só mobile) */
+.hamburger-btn {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1002;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    cursor: pointer;
+    box-shadow: var(--shadow);
+}
+
+.sidebar-overlay {
+    display: none;
+}
+
+/* Responsividade: sidebar off-canvas com hamburger */
+@media (max-width: 900px) {
+    .hamburger-btn {
+        display: flex;
+    }
+
     .sidebar {
-        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100dvh;
+        width: min(300px, 85vw);
+        z-index: 1001;
+        transform: translateX(-105%);
+        transition: transform 0.25s ease;
+        box-shadow: var(--shadow);
+    }
+
+    body.sidebar-open .sidebar {
+        transform: translateX(0);
+    }
+
+    body.sidebar-open .sidebar-overlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.45);
     }
 }
 

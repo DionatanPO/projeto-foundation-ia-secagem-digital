@@ -12,6 +12,7 @@ from .serializers import ChatRequestSerializer, ChatResponseSerializer, ModelSwi
 logger = logging.getLogger(__name__)
 from .services.lmm_service import LMMService
 from .services.remote_llm_service import RemoteLLMService
+from .services.attachment_service import extract_attachments_text
 
 # Instancia os serviços
 lmm_service = LMMService()
@@ -58,6 +59,9 @@ def chat_inference(request):
         use_rag = serializer.validated_data.get('use_rag', True)
         use_remote = serializer.validated_data.get('use_remote', None)
         remote_config = serializer.validated_data.get('remote_config', {})
+        attachment_ctx = extract_attachments_text(serializer.validated_data.get('attachments', []))
+        if attachment_ctx:
+            prompt = f"{attachment_ctx}\n\nPERGUNTA DO USUÁRIO: {prompt}"
 
         if remote_config:
             remote_llm_service.set_config(remote_config)
@@ -116,6 +120,9 @@ def chat_stream(request):
         use_rag = serializer.validated_data.get('use_rag', True)
         use_remote = serializer.validated_data.get('use_remote', None)
         remote_config = serializer.validated_data.get('remote_config', {})
+        attachment_ctx = extract_attachments_text(serializer.validated_data.get('attachments', []))
+        if attachment_ctx:
+            prompt = f"{attachment_ctx}\n\nPERGUNTA DO USUÁRIO: {prompt}"
 
         if remote_config:
             remote_llm_service.set_config(remote_config)
@@ -255,3 +262,121 @@ def unload_model(request):
     if success:
         return Response({"status": "Model unloaded successfully and memory freed!"}, status=status.HTTP_200_OK)
     return Response({"error": "Failed to unload model"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ── Histórico de conversas (persistido no servidor) ──
+def _conv_to_list(c):
+    return {
+        "id": c.id,
+        "title": c.title,
+        "created_at": c.created_at,
+        "updated_at": c.updated_at,
+        "message_count": c.messages.count(),
+    }
+
+
+def _conv_to_detail(c):
+    return {
+        "id": c.id,
+        "title": c.title,
+        "created_at": c.created_at,
+        "updated_at": c.updated_at,
+        "messages": [
+            {
+                "id": m.id,
+                "role": m.role,
+                "content": m.content,
+                "image_base64": m.image_base64 or "",
+                "created_at": m.created_at,
+            }
+            for m in c.messages.all()
+        ],
+    }
+
+
+@api_view(['GET', 'POST'])
+def conversations_list_create(request):
+    from .models import Conversation
+    from .serializers import ConversationCreateSerializer, ConversationListSerializer
+
+    if request.method == 'GET':
+        convs = Conversation.objects.prefetch_related('messages').all()
+        data = [_conv_to_list(c) for c in convs]
+        return Response(ConversationListSerializer(data, many=True).data)
+
+    serializer = ConversationCreateSerializer(data=request.data or {})
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    title = (serializer.validated_data.get('title') or '').strip() or 'Nova conversa'
+    conv = Conversation.objects.create(title=title[:255])
+    return Response(_conv_to_detail(conv), status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+def conversation_detail(request, conv_id):
+    from .models import Conversation
+    from .serializers import ConversationUpdateSerializer
+
+    try:
+        conv = Conversation.objects.prefetch_related('messages').get(id=conv_id)
+    except Conversation.DoesNotExist:
+        return Response({"error": "Conversa não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        return Response(_conv_to_detail(conv))
+
+    if request.method == 'PATCH':
+        serializer = ConversationUpdateSerializer(data=request.data or {})
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        conv.title = serializer.validated_data['title'].strip()[:255] or conv.title
+        conv.save(update_fields=['title', 'updated_at'])
+        return Response(_conv_to_detail(conv))
+
+    conv.delete()
+    return Response({"status": "deleted"})
+
+
+@api_view(['POST'])
+def conversation_append_message(request, conv_id):
+    from .models import Conversation, ChatMessage
+    from .serializers import ChatMessageSerializer
+
+    try:
+        conv = Conversation.objects.get(id=conv_id)
+    except Conversation.DoesNotExist:
+        return Response({"error": "Conversa não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ChatMessageSerializer(data=request.data or {})
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    msg = ChatMessage.objects.create(
+        conversation=conv,
+        role=serializer.validated_data['role'],
+        content=serializer.validated_data['content'],
+        image_base64=serializer.validated_data.get('image_base64') or '',
+    )
+    # atualiza título automático na primeira mensagem de usuário
+    data = serializer.validated_data
+    if conv.messages.count() <= 1 and data['role'] == 'user' and conv.title == 'Nova conversa':
+        t = ' '.join((data['content'] or '').split())[:38]
+        conv.title = (t + '…') if len((data['content'] or '')) > 38 else (t or conv.title)
+        conv.save(update_fields=['title', 'updated_at'])
+    else:
+        conv.save(update_fields=['updated_at'])
+
+    return Response(ChatMessageSerializer({
+        "id": msg.id,
+        "role": msg.role,
+        "content": msg.content,
+        "image_base64": msg.image_base64,
+        "created_at": msg.created_at,
+    }).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+def conversations_clear(request):
+    from .models import Conversation
+    deleted, _ = Conversation.objects.all().delete()
+    return Response({"status": "cleared", "deleted_objects": deleted})

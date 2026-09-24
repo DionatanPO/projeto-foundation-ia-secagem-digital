@@ -16,38 +16,46 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    <link rel="stylesheet" href="{% static 'model_ui/css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'model_ui/css/style.css' %}?v=9">
 </head>
 
 <body>
 
+    <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" title="Abrir menu" aria-label="Abrir menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
+
     <!-- ── SIDEBAR ── -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand">
-                <div class="brand-mark">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                        <path d="M2 17l10 5 10-5" />
-                        <path d="M2 12l10 5 10-5" />
-                    </svg>
-                </div>
                 <div class="brand-text">
                     <span class="brand-name">AgroMind</span>
-                    <span class="brand-sub">AI Assistant</span>
                 </div>
             </div>
         </div>
 
         <div class="sidebar-nav">
             <span class="nav-section-label">Sessão</span>
-            <div class="nav-item active">
+            <div class="nav-item active" id="newChatBtn" onclick="window.newConversation && window.newConversation()" title="Iniciar nova conversa">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
                     stroke-linejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
                 Nova conversa
+                <span class="new-chat-plus">+</span>
+            </div>
+        </div>
+
+        <div class="sidebar-nav history-nav">
+            <span class="nav-section-label">Histórico</span>
+            <div class="history-list" id="historyList">
+                <!-- Gerado via JS: lista de conversas -->
             </div>
         </div>
 
@@ -68,18 +76,6 @@
     <!-- ── MAIN ── -->
     <main class="main">
 
-        <!-- Topbar -->
-        <header class="topbar">
-            <span class="topbar-title">Chat · Modelo local</span>
-            <div class="topbar-right">
-                <div class="status-pill">
-                    <span class="status-dot"></span>
-                    online
-                </div>
-
-            </div>
-        </header>
-
         <!-- Welcome Hero -->
         <div class="welcome-hero" id="welcomeHero">
             <!-- Background Glow Circles -->
@@ -92,7 +88,7 @@
             <div class="welcome-inner">
                 <div class="welcome-mark">✦</div>
                 <h1 class="welcome-title">Como posso ajudar <em>hoje?</em></h1>
-                <p class="welcome-sub">Assistente local com visão e raciocínio profundo.<br>Pronto para ajudar com
+                <p class="welcome-sub">Assistente inteligente com visão e raciocínio profundo.<br>Pronto para ajudar com
                     secagem, qualidade e gestão de grãos.</p>
                 <div class="welcome-chips">
                     <button class="chip" onclick="fillPrompt('Qual é a umidade ideal para armazenar soja?')">Umidade
@@ -116,9 +112,9 @@
                 <button class="preview-remove" onclick="removeImage()">✕ remover</button>
             </div>
             <div class="input-box" id="inputBox">
-                <input type="file" id="imageInput" accept="image/*" style="display:none"
+                <input type="file" id="imageInput" accept="image/*,.pdf,.txt,.md,.csv,.json,.log,.docx" multiple style="display:none"
                     onchange="handleImageUpload(event)">
-                <button class="input-btn" onclick="document.getElementById('imageInput').click()" title="Anexar imagem">
+                <button class="input-btn" onclick="document.getElementById('imageInput').click()" title="Anexar imagem ou documento (PDF, TXT, DOCX...)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
                         stroke-linejoin="round">
                         <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -141,11 +137,6 @@
                         <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
                     </svg>
                 </button>
-            </div>
-            <div class="input-hints">
-                <span class="hint-text">Modelo rodando localmente</span>
-                <span class="hint-kbd"><kbd>Shift</kbd>+<kbd>Enter</kbd> para nova linha · <kbd>Enter</kbd> para
-                    enviar</span>
             </div>
         </div>
 
@@ -193,6 +184,14 @@
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
                     </svg>
                     Aparência
+                </button>
+                <button class="settings-tab" data-tab="tab-dados" onclick="switchTab('tab-dados', this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    </svg>
+                    Dados
                 </button>
             </div>
 
@@ -434,11 +433,41 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Aba: Dados -->
+                <div id="tab-dados" class="tab-content">
+                    <div style="max-width: 480px; margin: 0 auto;">
+                        <div style="padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; font-size: 13px; color: var(--text-dim);">
+                            <span id="historyCountInfo">Carregando histórico do servidor…</span>
+                        </div>
+
+                        <div style="margin-top: 16px; padding: 14px 16px; background: rgba(219, 68, 85, 0.08); border: 1px solid rgba(219, 68, 85, 0.25); border-radius: 12px; display: flex; align-items: flex-start; gap: 10px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#db4455" stroke-width="2" width="18" height="18" style="flex-shrink:0; margin-top: 1px;">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <div style="font-size: 12px; color: #db4455; line-height: 1.5;">
+                                <strong>Atenção:</strong> excluir todo o histórico apaga todas as conversas do servidor.
+                                <strong>Esta ação não pode ser desfeita.</strong>
+                            </div>
+                        </div>
+
+                        <button class="sys-input" id="clearAllHistoryBtn" onclick="clearAllHistory()"
+                            style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; cursor: pointer; background: rgba(219, 68, 85, 0.08); border: 1px solid rgba(219, 68, 85, 0.3); border-radius: 12px; color: #db4455; width: 100%; font-family: var(--font); font-weight: 600; transition: var(--transition); margin-top: 16px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;">
+                                <path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Excluir todo o histórico</span>
+                        </button>
+                        <div id="clearHistoryFeedback" style="margin-top: 10px; font-size: 12px; color: var(--text-dim); display: none;"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="{% static 'model_ui/js/script.js' %}"></script>
+    <script src="{% static 'model_ui/js/script.js' %}?v=12"></script>
 </body>
 
 </html>
