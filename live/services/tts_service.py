@@ -307,7 +307,8 @@ class TTSService:
         ns = max(0.0, min(2.0, float(DEFAULT_NOISE_SCALE if noise_scale is None else noise_scale)))
         nw = max(0.0, min(2.0, float(DEFAULT_NOISE_W if noise_w is None else noise_w)))
 
-        key = hashlib.sha1(f'{voice}|{speed:.2f}|{ns:.2f}|{nw:.2f}|{clean}'.encode('utf-8')).hexdigest()
+        # v2: invalida áudios antigos gerados antes do SynthesisConfig valer
+        key = hashlib.sha1(f'v2|{voice}|{speed:.2f}|{ns:.2f}|{nw:.2f}|{clean}'.encode('utf-8')).hexdigest()
         out = CACHE_DIR / f'{key}.wav'
         if out.exists() and out.stat().st_size > 44:
             return out
@@ -345,14 +346,29 @@ class TTSService:
         sample_rate = 22050
         # API piper-tts: synthesize(text, ...) -> generator de AudioChunk.
         # Assinatura varia entre versões; tenta do mais completo ao básico.
+        # (piper>=1.2 usa SynthesisConfig; versões antigas aceitam kwargs.)
+        audio_iter = None
         try:
-            audio_iter = voice.synthesize(text, length_scale=length_scale,
-                                          noise_scale=noise_scale, noise_w=noise_w)
-        except TypeError:
+            from piper.config import SynthesisConfig
+            audio_iter = voice.synthesize(
+                text,
+                syn_config=SynthesisConfig(
+                    length_scale=length_scale,
+                    noise_scale=noise_scale,
+                    noise_w_scale=noise_w,
+                ),
+            )
+        except (ImportError, TypeError):
+            audio_iter = None
+        if audio_iter is None:
             try:
-                audio_iter = voice.synthesize(text, length_scale=length_scale)
+                audio_iter = voice.synthesize(text, length_scale=length_scale,
+                                              noise_scale=noise_scale, noise_w=noise_w)
             except TypeError:
-                audio_iter = voice.synthesize(text)
+                try:
+                    audio_iter = voice.synthesize(text, length_scale=length_scale)
+                except TypeError:
+                    audio_iter = voice.synthesize(text)
         for chunk in audio_iter:
             sample_rate = getattr(chunk, 'sample_rate', sample_rate)
             data = getattr(chunk, 'audio_int16_bytes', b'')

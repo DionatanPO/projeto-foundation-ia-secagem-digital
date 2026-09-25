@@ -21,7 +21,7 @@
         speaking: false,
         stopFlag: false,
         voice: null,
-        speed: 0.9, // levemente mais devagar = mais natural
+        speed: 0.8, // cadência calma e natural
         audio: null,
         runId: 0,
         keepAlive: { active: false, restarts: 0, since: 0 },
@@ -86,14 +86,167 @@
 
     function paintBtn() {
         const btn = document.getElementById('liveBtn');
-        if (!btn) return;
-        btn.classList.toggle('live-on', state.enabled);
-        btn.classList.toggle('speaking', state.speaking);
-        btn.title = state.enabled
-            ? (state.speaking ? 'Live ligado — falando… (clique p/ desligar)' : 'Live ligado — clique p/ desligar')
-            : 'Modo Live: modelo fala a resposta (Piper, local)';
-        const label = btn.querySelector('.live-dot');
-        if (label) label.style.opacity = state.enabled ? '1' : '0';
+        if (btn) {
+            btn.classList.toggle('live-on', state.enabled);
+            btn.classList.toggle('speaking', state.speaking);
+            btn.title = state.enabled
+                ? (state.speaking ? 'Live ligado — falando… (clique p/ desligar)' : 'Live ligado — clique p/ desligar')
+                : 'Modo Live: conversa por voz (local)';
+            const label = btn.querySelector('.live-dot');
+            if (label) label.style.opacity = state.enabled ? '1' : '0';
+        }
+        // status do painel live
+        try {
+            const listening = liveIsListening();
+            const st = document.getElementById('liveStatus');
+            if (st) {
+                st.textContent = state.speaking ? 'Falando…'
+                    : listening ? 'Ouvindo…'
+                    : state.busy ? 'Pensando…'
+                    : 'Pode falar';
+            }
+            const orb = document.getElementById('liveOrb');
+            if (orb) {
+                orb.classList.toggle('speaking', state.speaking);
+                orb.classList.toggle('listening', listening && !state.speaking);
+                orb.classList.toggle('thinking', state.busy && !state.speaking);
+            }
+        } catch (e) {}
+    }
+
+    // ── Painel Live: substitui a caixa de texto quando ativo ──
+    function buildLivePanel() {
+        try {
+            if (document.getElementById('livePanel')) return;
+            const zone = document.querySelector('.input-zone');
+            if (!zone) return;
+            const panel = document.createElement('div');
+            panel.id = 'livePanel';
+            panel.style.display = 'none';
+            panel.innerHTML =
+                '<div class="live-orb" id="liveOrb"><canvas id="liveWave" width="280" height="72"></canvas></div>' +
+                '<div class="live-status" id="liveStatus">Pode falar</div>' +
+                '<button class="live-end" id="liveEndBtn" title="Encerrar Live">✕ Encerrar live</button>';
+            zone.parentNode.insertBefore(panel, zone.nextSibling);
+            document.getElementById('liveEndBtn').addEventListener('click', () => toggle());
+            startWaveLoop();
+        } catch (e) { console.warn('live panel falhou:', e); }
+    }
+
+    function showLivePanel(on) {
+        try {
+            buildLivePanel();
+            const zone = document.querySelector('.input-zone');
+            const panel = document.getElementById('livePanel');
+            if (zone) zone.style.display = on ? 'none' : '';
+            if (panel) panel.style.display = on ? 'flex' : 'none';
+        } catch (e) {}
+    }
+
+    // ── Web Audio: waveform reage ao mic e à fala ──
+    function liveEnsureCtx() {
+        try {
+            if (!state.actx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return null;
+                state.actx = new AC();
+                state.micAn = state.actx.createAnalyser();
+                state.micAn.fftSize = 256;
+                state.ttsAn = state.actx.createAnalyser();
+                state.ttsAn.fftSize = 256;
+            }
+            if (state.actx.state === 'suspended') state.actx.resume().catch(() => {});
+            return state.actx;
+        } catch (e) { return null; }
+    }
+
+    async function liveMicTap() {
+        try {
+            const ctx = liveEnsureCtx();
+            if (!ctx || state.micStream) return;
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            state.micStream = stream;
+            ctx.createMediaStreamSource(stream).connect(state.micAn);
+        } catch (e) { /* sem visual, painel segue normal */ }
+    }
+
+    function liveMicUntap() {
+        try {
+            if (state.micStream) state.micStream.getTracks().forEach(t => t.stop());
+        } catch (e) {}
+        state.micStream = null;
+    }
+
+    function liveTapTTS(audioEl) {
+        try {
+            const ctx = liveEnsureCtx();
+            if (!ctx) return;
+            ctx.createMediaElementSource(audioEl).connect(state.ttsAn);
+            state.ttsAn.connect(ctx.destination);
+        } catch (e) {}
+    }
+
+    // ouvindo = ditado do Chrome ativo (classe do botão) ou gravação local
+    function liveIsListening() {
+        try {
+            const b = document.getElementById('micBtn');
+            if (b && b.classList.contains('recording')) return true;
+        } catch (e) {}
+        return !!state.recording;
+    }
+
+    function waveLevels(n) {
+        const out = new Array(n).fill(0);
+        try {
+            let an = null;
+            if (state.speaking && state.ttsAn) an = state.ttsAn;
+            else if (liveIsListening() && state.micAn && state.micStream) an = state.micAn;
+            if (!an) return { bars: out, live: false };
+            const buf = new Uint8Array(an.frequencyBinCount);
+            an.getByteFrequencyData(buf);
+            for (let i = 0; i < n; i++) {
+                const idx = Math.floor(Math.pow(i / n, 1.4) * buf.length * 0.7);
+                out[i] = buf[idx] / 255;
+            }
+            return { bars: out, live: true };
+        } catch (e) { return { bars: out, live: false }; }
+    }
+
+    let waveT = 0;
+    function startWaveLoop() {
+        try {
+            const cv = document.getElementById('liveWave');
+            if (!cv) return;
+            const cx = cv.getContext('2d');
+            const N = 48;
+            function frame() {
+                try {
+                    const panel = document.getElementById('livePanel');
+                    if (panel && panel.style.display !== 'none') {
+                        const W = cv.width, H = cv.height;
+                        cx.clearRect(0, 0, W, H);
+                        const { bars, live } = waveLevels(N);
+                        waveT += 0.09;
+                        const gap = 2, bw = (W - (N - 1) * gap) / N;
+                        cx.fillStyle = state.speaking ? '#22c55e'
+                            : liveIsListening() ? '#4ade80'
+                            : 'rgba(130,130,150,.55)';
+                        for (let i = 0; i < N; i++) {
+                            let v;
+                            if (live) v = bars[i];
+                            else if (state.busy && !state.speaking) v = 0.16 + 0.12 * Math.sin(waveT * 1.6 + i * 0.3);
+                            else v = 0.07 + 0.05 * Math.sin(waveT + i * 0.5);
+                            const h = Math.max(3, v * (H - 8));
+                            const x = i * (bw + gap), y = (H - h) / 2;
+                            if (cx.roundRect) { cx.beginPath(); cx.roundRect(x, y, bw, h, bw / 2); cx.fill(); }
+                            else cx.fillRect(x, y, bw, h);
+                        }
+                    }
+                } catch (e) {}
+                requestAnimationFrame(frame);
+            }
+            requestAnimationFrame(frame);
+        } catch (e) {}
     }
 
     function stopAudio() {
@@ -157,6 +310,7 @@
         return new Promise((resolve) => {
             const audio = new Audio(url);
             state.audio = audio;
+            liveTapTTS(audio); // waveform reage à fala
             audio.onended = () => resolve(true);
             audio.onerror = () => resolve(false);
             try {
@@ -286,6 +440,8 @@
         if (state.enabled) {
             state.enabled = false;
             liveKeepOff();
+            liveMicUntap();
+            showLivePanel(false);
             stopAudio();
             try { // desliga o ditado se estava ouvindo
                 const b = document.getElementById('micBtn');
@@ -317,6 +473,9 @@
                 if (data.default && !state.voice) state.voice = data.default;
             }
         } catch (e) {}
+        showLivePanel(true);
+        liveMicTap(); // visual da waveform (não grava, só mede o volume)
+        paintBtn();
         toast('Live ligado — pode falar.');
         // já entra ouvindo: não precisa clicar no mic
         try {
@@ -382,6 +541,7 @@
             state.recording = false;
             clearTimeout(state.recTimer);
             micVisual(false);
+            paintBtn();
             toast('Transcrevendo…');
             try {
                 const blob = await stopRecorder();
@@ -463,6 +623,7 @@
                 liveKeepOff(); // enviando: não mais aguardando fala
                 state.stopFlag = false;
                 state.busy = true; // trava o auto-envio enquanto gera/responde
+                paintBtn(); // painel mostra "Pensando…"
                 const myRun = state.runId;
                 const myVoice = state.lastWasVoice === true; // consome a marca
                 state.lastWasVoice = false;
@@ -540,6 +701,7 @@
             let wasRecording = btn.classList.contains('recording');
             const obs = new MutationObserver(() => {
                 const isRec = btn.classList.contains('recording');
+                paintBtn(); // atualiza status/wave do painel
                 if (isRec) {
                     // voltou a falar: cancela envio pendente
                     wasRecording = true;
