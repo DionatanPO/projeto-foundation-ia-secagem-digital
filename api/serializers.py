@@ -10,6 +10,7 @@ class ChatRequestSerializer(serializers.Serializer):
     use_remote = serializers.BooleanField(required=False, default=None, allow_null=True, help_text="Se deve usar modelo remoto. Se não enviado, usa a configuração salva no servidor.")
     remote_config = serializers.DictField(required=False, default={}, help_text="Configuração do modelo remoto (api_url, api_key, model). Opcional se já configurado.")
     attachments = serializers.ListField(child=serializers.DictField(), required=False, default=[], help_text="Arquivos anexados: [{filename, mime, content_base64}]. Texto extraído e injetado como contexto.")
+    max_tokens = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=32, max_value=4096, help_text="Teto de tokens da resposta (ex: modo Live usa ~256). Omitido = sem limite.")
 
 class ModelSwitchSerializer(serializers.Serializer):
     model_name = serializers.CharField()

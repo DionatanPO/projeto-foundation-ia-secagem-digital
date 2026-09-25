@@ -7,3 +7,6 @@ sqlparse==0.5.5
 tzdata==2026.2
 requests==2.32.3
 python-docx==1.1.2
+# Modo Live (voz local Piper) — opcional; o chat funciona sem eles
+piper-tts>=1.2.0
+onnxruntime>=1.17.0

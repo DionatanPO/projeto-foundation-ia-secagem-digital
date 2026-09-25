@@ -81,7 +81,8 @@ class RemoteLLMService:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def generate_stream(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
+    def generate_stream(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False, max_tokens=None):
+        # OpenCode session API não aceita teto de tokens; a brevidade vem do system_prompt.
         if not REQUESTS_INSTALLED:
             yield json.dumps({"event": "error", "data": "Biblioteca 'requests' não instalada."}) + "\n"
             return
@@ -162,7 +163,7 @@ class RemoteLLMService:
         except Exception as e:
             yield json.dumps({"event": "error", "data": str(e)}) + "\n"
 
-    def generate_response(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
+    def generate_response(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False, max_tokens=None):
         collected = []
         for chunk in self.generate_stream(
             prompt=prompt,
@@ -170,7 +171,8 @@ class RemoteLLMService:
             image_base64=image_base64,
             system_prompt=system_prompt,
             history=history,
-            use_rag=use_rag
+            use_rag=use_rag,
+            max_tokens=max_tokens
         ):
             try:
                 packet = json.loads(chunk.strip())

@@ -59,6 +59,9 @@ def chat_inference(request):
         use_rag = serializer.validated_data.get('use_rag', True)
         use_remote = serializer.validated_data.get('use_remote', None)
         remote_config = serializer.validated_data.get('remote_config', {})
+        max_tokens = serializer.validated_data.get('max_tokens', None)
+        if max_tokens is not None:
+            max_tokens = max(32, min(4096, int(max_tokens)))
         attachment_ctx = extract_attachments_text(serializer.validated_data.get('attachments', []))
         if attachment_ctx:
             prompt = f"{attachment_ctx}\n\nPERGUNTA DO USUÁRIO: {prompt}"
@@ -93,7 +96,8 @@ def chat_inference(request):
             image_base64=image_base64,
             system_prompt=system_prompt,
             history=history,
-            use_rag=use_rag
+            use_rag=use_rag,
+            max_tokens=max_tokens
         )
 
         return Response({
@@ -120,6 +124,9 @@ def chat_stream(request):
         use_rag = serializer.validated_data.get('use_rag', True)
         use_remote = serializer.validated_data.get('use_remote', None)
         remote_config = serializer.validated_data.get('remote_config', {})
+        max_tokens = serializer.validated_data.get('max_tokens', None)
+        if max_tokens is not None:
+            max_tokens = max(32, min(4096, int(max_tokens)))
         attachment_ctx = extract_attachments_text(serializer.validated_data.get('attachments', []))
         if attachment_ctx:
             prompt = f"{attachment_ctx}\n\nPERGUNTA DO USUÁRIO: {prompt}"
@@ -156,7 +163,8 @@ def chat_stream(request):
                     image_base64=image_base64,
                     system_prompt=system_prompt,
                     history=history,
-                    use_rag=use_rag
+                    use_rag=use_rag,
+                    max_tokens=max_tokens
                 ):
                     yield chunk
             except (BrokenPipeError, ConnectionResetError):

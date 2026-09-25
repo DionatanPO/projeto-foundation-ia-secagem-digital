@@ -205,7 +205,7 @@ class LMMService:
     def _strip_think(text: str) -> str:
         return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
 
-    def generate_stream(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
+    def generate_stream(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False, max_tokens=None):
         """
         Streaming padronizado (NDJSON):
         {"event": "thought", "data": "..."}
@@ -238,7 +238,7 @@ class LMMService:
             messages.append({"role": "user", "content": user_content})
 
             stream = self._model.create_chat_completion(
-                messages=messages, max_tokens=None, temperature=temperature, stream=True
+                messages=messages, max_tokens=max_tokens, temperature=temperature, stream=True
             )
 
             in_think = False
@@ -275,7 +275,7 @@ class LMMService:
         except Exception as e:
             yield json.dumps({"event": "error", "data": str(e)}) + "\n"
 
-    def generate_response(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False):
+    def generate_response(self, prompt, temperature=0.1, image_base64=None, system_prompt=None, history=None, use_rag=False, max_tokens=None):
         """
         Envia o prompt formatado para o modelo e retorna a resposta gerada.
         """
@@ -318,7 +318,7 @@ class LMMService:
 
             output = self._model.create_chat_completion(
                 messages=messages,
-                max_tokens=None,
+                max_tokens=max_tokens,
                 temperature=temperature
             )
 
