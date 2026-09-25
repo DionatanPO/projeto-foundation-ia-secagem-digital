@@ -8,16 +8,21 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .services.tts_service import tts_service, PiperNotAvailable, split_into_chunks
+from .services.stt_service import stt_service, STTEngineMissing
 
 logger = logging.getLogger(__name__)
+
+MAX_AUDIO_MB = 25
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def live_health(request):
-    """Estado do motor de voz (para o botão Live saber se pode ativar)."""
+    """Estado dos motores de voz (para o botão Live saber se pode ativar)."""
     try:
-        return Response({'ok': True, 'live': tts_service.status()})
+        return Response({'ok': True,
+                         'live': tts_service.status(),
+                         'stt': stt_service.status()})
     except Exception as e:
         logger.exception('live_health falhou')
         return Response({'ok': False, 'error': str(e)},
@@ -95,6 +100,50 @@ def live_speak(request):
     resp['Cache-Control'] = 'public, max-age=86400'
     resp['X-Live-Voice'] = voice or tts_service.status()['default_voice']
     return resp
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def live_transcribe(request):
+    """Áudio do microfone -> texto (Faster-Whisper local).
+
+    Multipart: {"audio": arquivo (webm/wav/mp3/ogg, até 25MB), "language": "pt" (opcional)}
+    """
+    f = request.FILES.get('audio')
+    if f is None:
+        return Response({'error': 'Nenhum áudio enviado (campo "audio").'},
+                        status=status.HTTP_400_BAD_REQUEST)
+    if f.size > MAX_AUDIO_MB * 1024 * 1024:
+        return Response({'error': f'Áudio maior que {MAX_AUDIO_MB}MB.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+    language = (request.data.get('language') or 'pt').strip() or 'pt'
+
+    import tempfile, os
+    suffix = os.path.splitext(getattr(f, 'name', '') or '')[1].lower() or '.webm'
+    if suffix not in ('.webm', '.wav', '.mp3', '.ogg', '.m4a', '.mp4'):
+        suffix = '.webm'
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    try:
+        for chunk in f.chunks():
+            tmp.write(chunk)
+        tmp.close()
+        try:
+            text = stt_service.transcribe(tmp.name, language=language)
+        except STTEngineMissing as e:
+            return Response({'error': str(e), 'install_hint': True},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'text': text})
+    except Exception:
+        logger.exception('live_transcribe falhou')
+        return Response({'error': 'Falha interna ao transcrever áudio.'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
 
 
 @api_view(['POST'])

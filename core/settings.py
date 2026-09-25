@@ -109,6 +109,12 @@ HF_TOKEN = os.getenv('HF_TOKEN', None)
 PIPER_VOICE = os.getenv('PIPER_VOICE', 'pt_BR-faber-medium')
 PIPER_NOISE_SCALE = os.getenv('PIPER_NOISE_SCALE', '0.8')
 PIPER_NOISE_W = os.getenv('PIPER_NOISE_W', '0.8')
+
+# Modo Live — transcrição local (Faster-Whisper, CPU). Modelo baixa no 1º uso.
+LIVE_STT_MODEL = os.getenv('LIVE_STT_MODEL', 'small')  # tiny|base|small|medium
+LIVE_STT_DIR = os.getenv('LIVE_STT_DIR', str(BASE_DIR / 'models' / 'stt'))
+LIVE_STT_DEVICE = os.getenv('LIVE_STT_DEVICE', 'cpu')
+LIVE_STT_COMPUTE = os.getenv('LIVE_STT_COMPUTE', 'int8')
 PIPER_MODEL_DIR = os.getenv('PIPER_MODEL_DIR', str(BASE_DIR / 'models' / 'tts'))
 PIPER_CACHE_DIR = os.getenv('PIPER_CACHE_DIR', str(BASE_DIR / 'storage' / 'tts_cache'))
 LIVE_MAX_CHARS = int(os.getenv('LIVE_MAX_CHARS', '600'))

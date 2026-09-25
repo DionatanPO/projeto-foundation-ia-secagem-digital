@@ -11,7 +11,9 @@
         voices: '/api/live/voices/',
         speak: '/api/live/speak/',
         split: '/api/live/split/',
+        transcribe: '/api/live/transcribe/',
     };
+    const REC_MAX_S = 60;
 
     const state = {
         enabled: false,
@@ -22,7 +24,10 @@
         speed: 0.9, // levemente mais devagar = mais natural
         audio: null,
         runId: 0,
+        keepAlive: { active: false, restarts: 0, since: 0 },
     };
+    const KEEP_MAX_RESTARTS = 24; // ~3 min de espera no total
+    const KEEP_MAX_S = 180;
 
     // Com Live ligado, o modelo responde curto (fala mais rápido).
     // Injetado só no corpo da requisição — não altera o campo Diretriz na tela.
@@ -228,12 +233,34 @@
         } catch (e) { return ''; }
     }
 
-    async function onTurnFinished() {
+    // Fecha o loop do bate-papo: após falar, religa o mic sozinho
+    // (só se o turno veio de voz — quem digitou não é interrompido).
+    function restartMicForNextTurn(runId) {
+        try {
+            if (!state.enabled || runId !== state.runId) return;
+            const btn = document.getElementById('micBtn');
+            if (!btn || btn.classList.contains('recording')) return;
+            if (typeof window.toggleVoice !== 'function') return;
+            setTimeout(() => {
+                try {
+                    if (!state.enabled || runId !== state.runId || state.busy) return;
+                    const b = document.getElementById('micBtn');
+                    if (!b || b.classList.contains('recording')) return;
+                    window.toggleVoice(); // mic original do Chrome
+                    liveMicActivated(true);
+                    toast('Sua vez — pode falar.');
+                } catch (e) {}
+            }, 600);
+        } catch (e) {}
+    }
+
+    async function onTurnFinished(expectVoice) {
         if (!state.enabled) return;
         const runId = state.runId;
         const text = lastBotText();
         if (!text || !text.trim()) {
             toast('Live: não encontrei texto na resposta para falar.', true);
+            if (expectVoice) restartMicForNextTurn(runId);
             return;
         }
         state.stopFlag = false;
@@ -243,6 +270,7 @@
         await speakChunks(chunks.slice(0, 12), runId); // teto: 12 frases por resposta
         state.speaking = false;
         paintBtn();
+        if (expectVoice) restartMicForNextTurn(runId);
     }
 
     async function checkEngine() {
@@ -257,7 +285,15 @@
     async function toggle() {
         if (state.enabled) {
             state.enabled = false;
+            liveKeepOff();
             stopAudio();
+            try { // desliga o ditado se estava ouvindo
+                const b = document.getElementById('micBtn');
+                if (b && b.classList.contains('recording') && typeof window.toggleVoice === 'function') {
+                    window.toggleVoice();
+                }
+            } catch (e) {}
+            if (state.autoSendTimer) { clearTimeout(state.autoSendTimer); state.autoSendTimer = null; }
             paintBtn();
             toast('Modo Live desligado.');
             return;
@@ -281,7 +317,140 @@
                 if (data.default && !state.voice) state.voice = data.default;
             }
         } catch (e) {}
-        toast('Live ligado — respostas breves e faladas.');
+        toast('Live ligado — pode falar.');
+        // já entra ouvindo: não precisa clicar no mic
+        try {
+            const b = document.getElementById('micBtn');
+            if (b && !b.classList.contains('recording') && typeof window.toggleVoice === 'function') {
+                setTimeout(() => {
+                    try {
+                        if (!state.enabled) return;
+                        const b2 = document.getElementById('micBtn');
+                        if (!b2 || b2.classList.contains('recording')) return;
+                        window.toggleVoice();
+                        liveMicActivated(true);
+                    } catch (e) {}
+                }, 400);
+            }
+        } catch (e) {}
+    }
+
+    // ── Mic no modo Live: grava -> transcreve (local) -> envia sozinho ──
+    function micVisual(on) {
+        try {
+            const btn = document.getElementById('micBtn');
+            if (btn) btn.classList.toggle('recording', !!on);
+        } catch (e) {}
+    }
+
+    function stopRecorder() {
+        return new Promise((resolve) => {
+            const rec = state.recorder;
+            if (!rec || rec.state === 'inactive') return resolve(null);
+            rec.onstop = () => resolve(new Blob(state.recChunks, { type: rec.mimeType || 'audio/webm' }));
+            try { rec.stop(); } catch (e) { resolve(null); }
+            try {
+                const st = state.recStream || rec.stream;
+                if (st) st.getTracks().forEach(t => t.stop());
+            } catch (e) {}
+            state.recStream = null;
+        });
+    }
+
+    async function uploadTranscribe(blob) {
+        const fd = new FormData();
+        fd.append('audio', blob, 'fala.webm');
+        fd.append('language', 'pt');
+        const res = await fetch(API.transcribe, { method: 'POST', body: fd });
+        if (res.status === 503) {
+            const data = await res.json().catch(() => ({}));
+            toast(data.error || 'Transcrição indisponível. Rode: pip install faster-whisper', true);
+            return '';
+        }
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            toast(data.error || `Falha ao transcrever (HTTP ${res.status}).`, true);
+            return '';
+        }
+        const data = await res.json();
+        return (data.text || '').trim();
+    }
+
+    async function listen() {
+        // segundo clique (ou fim): para, transcreve e envia
+        if (state.recording) {
+            state.recording = false;
+            clearTimeout(state.recTimer);
+            micVisual(false);
+            toast('Transcrevendo…');
+            try {
+                const blob = await stopRecorder();
+                state.recorder = null;
+                if (!blob || !blob.size) { toast('Nenhum áudio capturado.', true); return; }
+                const text = await uploadTranscribe(blob);
+                if (!text) return;
+                const input = document.getElementById('promptInput');
+                if (input) {
+                    input.value = text;
+                    input.dispatchEvent(new Event('input'));
+                }
+                toast(`Você disse: "${text.slice(0, 80)}${text.length > 80 ? '…' : ''}"`);
+                if (typeof window.sendMessage === 'function') window.sendMessage();
+            } catch (e) {
+                console.warn('live listen erro:', e);
+                toast('Falha ao processar o áudio.', true);
+            }
+            return;
+        }
+        // primeiro clique: começa a gravar
+        try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                toast('Navegador não permite microfone aqui. Use localhost ou HTTPS.', true);
+                return;
+            }
+            if (typeof MediaRecorder === 'undefined') {
+                toast('Navegador não suporta gravação de áudio.', true);
+                return;
+            }
+            // se o navegador já negou antes, avisa como liberar em vez de falhar mudo
+            try {
+                if (navigator.permissions && navigator.permissions.query) {
+                    const st = await navigator.permissions.query({ name: 'microphone' });
+                    if (st.state === 'denied') {
+                        toast('Mic bloqueado p/ este site. Clique no cadeado da barra de endereço → Microfone → Permitir, e recarregue (F5).', true);
+                        return;
+                    }
+                }
+            } catch (e) {}
+            stopAudio();
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mime = (window.MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm'))
+                ? 'audio/webm' : '';
+            const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+            state.recChunks = [];
+            rec.ondataavailable = (e) => { if (e.data && e.data.size) state.recChunks.push(e.data); };
+            rec.start(250);
+            state.recStream = stream; // MediaRecorder.stream é só-leitura: guarda separado
+            state.recorder = rec;
+            state.recording = true;
+            micVisual(true);
+            toast('Ouvindo… clique no mic de novo para enviar.');
+            state.recTimer = setTimeout(() => { if (state.recording) listen(); }, REC_MAX_S * 1000);
+        } catch (e) {
+            console.warn('live mic erro:', e);
+            micVisual(false);
+            state.recording = false;
+            const name = (e && e.name) || '';
+            if (name === 'NotAllowedError') {
+                toast('Permissão negada. Clique no cadeado da barra de endereço → Microfone → Permitir, e recarregue (F5).', true);
+            } else if (name === 'NotFoundError') {
+                toast('Nenhum microfone encontrado no computador.', true);
+            } else if (name === 'NotReadableError') {
+                toast('Microfone em uso por outro programa (Meet, Teams, etc.). Feche-o e tente de novo.', true);
+            } else {
+                toast('Microfone bloqueado. Permita o acesso no navegador.', true);
+            }
+        }
     }
 
     // Envolve o sendMessage original SEM alterá-lo: nova mensagem = interrompe fala atual.
@@ -291,12 +460,17 @@
             const orig = window.sendMessage;
             const wrapped = async function () {
                 stopAudio(); // interrompe fala anterior ao enviar
+                liveKeepOff(); // enviando: não mais aguardando fala
                 state.stopFlag = false;
+                state.busy = true; // trava o auto-envio enquanto gera/responde
                 const myRun = state.runId;
+                const myVoice = state.lastWasVoice === true; // consome a marca
+                state.lastWasVoice = false;
                 try {
                     return await orig.apply(this, arguments);
                 } finally {
-                    if (state.enabled && myRun === state.runId) onTurnFinished();
+                    state.busy = false;
+                    if (state.enabled && myRun === state.runId) onTurnFinished(myVoice);
                     else { state.speaking = false; paintBtn(); }
                 }
             };
@@ -305,7 +479,102 @@
         } catch (e) { console.warn('live wrap falhou:', e); }
     }
 
-    // script.js define window.sendMessage no fim do arquivo; tenta envolver com retry.
+    // O mic SEMPRE usa o ditado do navegador (Chrome): vai escrevendo na caixa
+    // em tempo real. Sem wrapper aqui de propósito.
+    // A transcrição local (LiveMode.listen -> /api/live/transcribe/) segue
+    // disponível como alternativa, mas não é a rota padrão do botão.
+
+    function liveKeepOff() { state.keepAlive.active = false; }
+    function liveMicActivated(fresh) {
+        state.keepAlive.active = true;
+        if (fresh) { state.keepAlive.since = Date.now(); state.keepAlive.restarts = 0; }
+    }
+
+    // Mic parou SEM texto = timeout de silêncio do Chrome: religa sozinho.
+    // Com texto = fim de fala: segue pro auto-envio normal.
+    function liveKeepAlive() {
+        const ka = state.keepAlive;
+        if (!state.enabled || !ka.active || state.busy) return;
+        const elapsed = (Date.now() - (ka.since || Date.now())) / 1000;
+        if (ka.restarts >= KEEP_MAX_RESTARTS || elapsed > KEEP_MAX_S) {
+            ka.active = false;
+            toast('Mic em espera — clique para falar.');
+            return;
+        }
+        ka.restarts += 1;
+        if (ka.restarts === 1) toast('Continuo ouvindo…');
+        setTimeout(() => {
+            try {
+                if (!state.enabled || !state.keepAlive.active || state.busy) return;
+                const b = document.getElementById('micBtn');
+                if (!b || b.classList.contains('recording')) return;
+                if (typeof window.toggleVoice !== 'function') return;
+                window.toggleVoice();
+            } catch (e) {}
+        }, 400);
+    }
+
+    // ── Auto-envio no Live: Chrome parou de ouvir -> envia sozinho ──
+    // Observa a classe 'recording' do botão (que o script.js liga/desliga).
+    // Só no Live, com ~1s de respiro (dá tempo de voltar a falar e cancelar).
+    function setupMicAutoSend() {
+        try {
+            const btn = document.getElementById('micBtn');
+            const input = document.getElementById('promptInput');
+            if (!btn || !input || btn.__liveObserved) return;
+            btn.__liveObserved = true;
+            // clique do usuário: ligou = quer conversar (keep-alive); desligou = respeita
+            btn.addEventListener('click', () => setTimeout(() => {
+                try {
+                    if (!state.enabled) { liveKeepOff(); return; }
+                    if (btn.classList.contains('recording')) liveMicActivated(true);
+                    else {
+                        liveKeepOff();
+                        if (state.autoSendTimer) {
+                            clearTimeout(state.autoSendTimer);
+                            state.autoSendTimer = null;
+                        }
+                    }
+                } catch (e) {}
+            }, 0));
+            let wasRecording = btn.classList.contains('recording');
+            const obs = new MutationObserver(() => {
+                const isRec = btn.classList.contains('recording');
+                if (isRec) {
+                    // voltou a falar: cancela envio pendente
+                    wasRecording = true;
+                    if (state.autoSendTimer) {
+                        clearTimeout(state.autoSendTimer);
+                        state.autoSendTimer = null;
+                    }
+                    return;
+                }
+                if (wasRecording && !isRec) {
+                    // parou de ouvir
+                    wasRecording = false;
+                    if (!state.enabled) { liveKeepOff(); return; } // normal: manual
+                    const textNow = ((document.getElementById('promptInput') || {}).value || '').trim();
+                    if (textNow.length >= 2) {
+                        liveKeepOff(); // vai enviar; o loop reativa depois da resposta
+                        if (state.autoSendTimer) clearTimeout(state.autoSendTimer);
+                        state.autoSendTimer = setTimeout(() => {
+                            state.autoSendTimer = null;
+                            if (!state.enabled || state.busy) return;
+                            const text = (document.getElementById('promptInput') || {}).value || '';
+                            if (text.trim().length < 2) return;
+                            state.lastWasVoice = true; // marca: turno veio do mic
+                            if (typeof window.sendMessage === 'function') window.sendMessage();
+                        }, 1000);
+                    } else {
+                        liveKeepAlive(); // silêncio: mantém o mic vivo
+                    }
+                }
+            });
+            obs.observe(btn, { attributes: true, attributeFilter: ['class'] });
+        } catch (e) { console.warn('live autosend falhou:', e); }
+    }
+
+    // script.js define window.sendMessage no fim do arquivo; retry.
     let tries = 0;
     const iv = setInterval(() => {
         tries += 1;
@@ -318,10 +587,12 @@
     window.LiveMode = {
         toggle,
         stop: stopAudio,
+        listen,
         get enabled() { return state.enabled; },
         setVoice(v) { state.voice = v; },
         setSpeed(s) { state.speed = Math.max(0.5, Math.min(2.0, Number(s) || 1.0)); },
     };
 
-    document.addEventListener('DOMContentLoaded', paintBtn);
+    document.addEventListener('DOMContentLoaded', () => { paintBtn(); setupMicAutoSend(); });
+    try { setupMicAutoSend(); } catch (e) {}
 })();
