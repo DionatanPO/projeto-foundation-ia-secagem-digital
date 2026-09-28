@@ -8,7 +8,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-8tq=*#r2brek!81j(idb1w%!u4b&oglhxpw4093eqctuqyn@y^')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'ai.secagemdigital.com']
+
+
+def _csv_hosts(name, default):
+    raw = os.getenv(name, default)
+    return [h.strip() for h in raw.split(',') if h.strip()]
+
+
+# Libera o acesso do app Flutter na mesma rede Wi-Fi / emulador.
+# Ex.: ALLOWED_HOSTS=127.0.0.1,localhost,10.0.2.2,192.168.0.10,ai.secagemdigital.com
+# 10.0.2.2 = alias do localhost para o emulador Android.
+ALLOWED_HOSTS = _csv_hosts(
+    'ALLOWED_HOSTS',
+    '127.0.0.1,localhost,10.0.2.2,testserver,ai.secagemdigital.com',
+)
+
+# Áudios do modo Live (até 25MB) — sobe o teto do Django junto.
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv('DATA_UPLOAD_MAX_MEMORY_SIZE', str(30 * 1024 * 1024)))
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv('FILE_UPLOAD_MAX_MEMORY_SIZE', str(30 * 1024 * 1024)))
 
 INSTALLED_APPS = [
     'django.contrib.admin',

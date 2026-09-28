@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import live_health, live_voices, live_speak, live_split, live_transcribe
+from .views import live_health, live_voices, live_speak, live_split, live_transcribe, live_turn
 
 urlpatterns = [
     path('health/', live_health, name='live-health'),
@@ -7,4 +7,5 @@ urlpatterns = [
     path('speak/', live_speak, name='live-speak'),
     path('split/', live_split, name='live-split'),
     path('transcribe/', live_transcribe, name='live-transcribe'),
+    path('turn/', live_turn, name='live-turn'),
 ]
