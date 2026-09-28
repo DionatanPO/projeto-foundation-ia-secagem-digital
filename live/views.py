@@ -7,7 +7,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
-from .services.tts_service import tts_service, PiperNotAvailable, split_into_chunks
+from .services.tts_service import (
+    tts_service, PiperNotAvailable, split_into_chunks,
+    EDGE_VOICES, VOICE_CATALOG,
+)
 from .services.stt_service import stt_service, STTEngineMissing
 
 logger = logging.getLogger(__name__)
@@ -34,12 +37,30 @@ def live_health(request):
 def live_voices(request):
     try:
         s = tts_service.status()
+        voices_list = []
+        # Vozes neurais Edge-TTS
+        if tts_service._edge_tts_available():
+            for vid, meta in EDGE_VOICES.items():
+                voices_list.append({
+                    'id': vid,
+                    'name': meta['name'],
+                    'engine': 'edge-tts',
+                    'gender': meta['gender'],
+                    'downloaded': True,
+                })
+        # Vozes locais Piper
+        for vid in VOICE_CATALOG:
+            voices_list.append({
+                'id': vid,
+                'name': f"{vid} (Piper Local)",
+                'engine': 'piper',
+                'gender': 'male',
+                'downloaded': tts_service.is_voice_downloaded(vid),
+            })
+
         return Response({
             'default': s['default_voice'],
-            'voices': [
-                {'id': v, 'downloaded': tts_service.is_voice_downloaded(v)}
-                for v in s['voices']
-            ],
+            'voices': voices_list,
         })
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -48,9 +69,9 @@ def live_voices(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def live_speak(request):
-    """Texto -> WAV. Uma frase por chamada (frontend divide a resposta).
+    """Texto -> Áudio (MP3/WAV). Uma frase por chamada (frontend divide a resposta).
 
-    Body: {"text": "...", "voice": "pt_BR-faber-medium" (opcional), "speed": 0.9 (opcional),
+    Body: {"text": "...", "voice": "pt-BR-AntonioNeural" (opcional), "speed": 0.9 (opcional),
            "noise_scale": 0.8 (opcional), "noise_w": 0.8 (opcional)}
     """
     data = request.data or {}
@@ -64,7 +85,7 @@ def live_speak(request):
         except (TypeError, ValueError):
             return default
 
-    speed = _f('speed', 0.9)
+    speed = _f('speed', 0.95)
     noise_scale = data.get('noise_scale', None)
     noise_w = data.get('noise_w', None)
     try:
@@ -78,8 +99,8 @@ def live_speak(request):
         return Response({'error': 'Campo "text" vazio.'},
                         status=status.HTTP_400_BAD_REQUEST)
     try:
-        wav = tts_service.synthesize(text, voice=voice, speed=speed,
-                                     noise_scale=noise_scale, noise_w=noise_w)
+        audio_file = tts_service.synthesize(text, voice=voice, speed=speed,
+                                           noise_scale=noise_scale, noise_w=noise_w)
     except ValueError as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except FileNotFoundError as e:
@@ -95,8 +116,9 @@ def live_speak(request):
         return Response({'error': 'Falha interna ao sintetizar voz.'},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    resp = FileResponse(open(wav, 'rb'), content_type='audio/wav')
-    resp['Content-Length'] = wav.stat().st_size
+    content_type = 'audio/mpeg' if str(audio_file).endswith('.mp3') else 'audio/wav'
+    resp = FileResponse(open(audio_file, 'rb'), content_type=content_type)
+    resp['Content-Length'] = audio_file.stat().st_size
     resp['Cache-Control'] = 'public, max-age=86400'
     resp['X-Live-Voice'] = voice or tts_service.status()['default_voice']
     return resp

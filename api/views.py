@@ -26,7 +26,8 @@ def health_check(request):
 @api_view(['GET'])
 def system_status(request):
     """
-    Retorna o consumo de memória RAM do processo atual (Django + LMM) e do sistema.
+    Retorna o consumo de memória RAM do processo atual (Django + LMM) e do sistema,
+    mais o estado real de GPU/CPU do modelo carregado.
     """
     process = psutil.Process(os.getpid())
     process_memory_mb = process.memory_info().rss / (1024 * 1024)
@@ -35,11 +36,21 @@ def system_status(request):
     used_memory_mb = system_memory.used / (1024 * 1024)
     memory_percent = system_memory.percent
 
+    try:
+        device_info = lmm_service.get_device_info()
+    except Exception as e:
+        device_info = {"gpu_enabled": False, "device_requested": "cpu", "n_gpu_layers": 0, "error": str(e)}
+
     return Response({
         "process_ram_mb": round(process_memory_mb, 2),
         "system_total_mb": round(total_memory_mb, 2),
         "system_used_mb": round(used_memory_mb, 2),
-        "system_percent": memory_percent
+        "system_percent": memory_percent,
+        "gpu_enabled": device_info.get("gpu_enabled", False),
+        "device": device_info.get("device_requested", "cpu"),
+        "n_gpu_layers": device_info.get("n_gpu_layers", 0),
+        "gpu_backend_available": device_info.get("gpu_backend_available", False),
+        "backend_info": device_info.get("backend_info", ""),
     })
 
 @api_view(['POST'])
@@ -184,12 +195,18 @@ def service_mode(request):
     """
     cfg = remote_llm_service.get_config()
     enabled = remote_llm_service.is_enabled()
+    try:
+        device_info = lmm_service.get_device_info()
+    except Exception:
+        device_info = {}
     return Response({
         "mode": "remote" if enabled else "local",
         "remote_enabled": enabled,
         "remote_api_url": cfg.get("api_url", ""),
         "local_model_loaded": lmm_service.model is not None,
-        "local_model": lmm_service.get_current_model()
+        "local_model": lmm_service.get_current_model(),
+        "device": device_info.get("device_requested", "cpu"),
+        "gpu_enabled": device_info.get("gpu_enabled", False),
     })
 
 
@@ -229,9 +246,16 @@ def list_models(request):
     """
     models = lmm_service.list_available_models()
     current_model = lmm_service.get_current_model()
+    try:
+        device_info = lmm_service.get_device_info()
+    except Exception:
+        device_info = {}
     return Response({
         "models": models,
-        "current_model": current_model
+        "current_model": current_model,
+        "device": device_info.get("device_requested", "cpu"),
+        "gpu_enabled": device_info.get("gpu_enabled", False),
+        "n_gpu_layers": device_info.get("n_gpu_layers", 0),
     })
 
 @api_view(['POST'])
@@ -245,7 +269,23 @@ def switch_model(request):
         use_gpu = serializer.validated_data.get('use_gpu', False)
         success = lmm_service.switch_model(model_name, use_gpu=use_gpu)
         if success:
-            return Response({"status": "Model switched", "model": model_name})
+            try:
+                device_info = lmm_service.get_device_info()
+            except Exception:
+                device_info = {}
+            resp = {"status": "Model switched", "model": model_name}
+            resp.update({
+                "device": device_info.get("device_requested", "gpu" if use_gpu else "cpu"),
+                "gpu_enabled": device_info.get("gpu_enabled", False),
+                "n_gpu_layers": device_info.get("n_gpu_layers", 0),
+            })
+            if use_gpu and not resp["gpu_enabled"]:
+                resp["warning"] = (
+                    "GPU solicitada, mas o build do llama-cpp-python é CPU-only "
+                    "(sem VULKAN/CUDA). Modelo carregado em CPU. "
+                    "Reinstale com: CMAKE_ARGS='-DGGML_VULKAN=on' pip install --force-reinstall --no-cache-dir llama-cpp-python"
+                )
+            return Response(resp)
         return Response({"error": "Failed to load model"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

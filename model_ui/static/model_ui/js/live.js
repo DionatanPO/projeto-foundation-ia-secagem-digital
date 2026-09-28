@@ -21,7 +21,7 @@
         speaking: false,
         stopFlag: false,
         voice: null,
-        speed: 0.8, // cadência calma e natural
+        speed: 0.95, // fala mais ágil e natural (0.95x)
         audio: null,
         runId: 0,
         keepAlive: { active: false, restarts: 0, since: 0 },
@@ -68,6 +68,7 @@
     wrapFetch();
 
     function toast(msg, isErr) {
+        if (!isErr) return; // Não exibir notificações informativas perto do microfone
         try {
             let el = document.getElementById('liveToast');
             if (!el) {
@@ -99,48 +100,128 @@
         try {
             const listening = liveIsListening();
             const st = document.getElementById('liveStatus');
-            if (st) {
-                st.textContent = state.speaking ? 'Falando…'
-                    : listening ? 'Ouvindo…'
-                    : state.busy ? 'Pensando…'
-                    : 'Pode falar';
+            const sub = document.getElementById('liveStatusSub');
+            const orbWrapper = document.getElementById('geminiOrbWrapper');
+
+            if (state.muted) {
+                if (st) st.textContent = 'Microfone em pausa';
+                if (sub) sub.textContent = 'Clique no ícone de microfone para reativar';
+            } else if (state.speaking) {
+                if (st) st.textContent = 'Falando…';
+                if (sub) sub.textContent = 'Ouvindo a resposta sintetizada';
+            } else if (listening && !state.speaking) {
+                if (st) st.textContent = 'Ouvindo você…';
+                if (sub) sub.textContent = 'Fale normalmente, o microfone está ativo';
+            } else if (state.busy) {
+                if (st) st.textContent = 'Pensando…';
+                if (sub) sub.textContent = 'Analisando o contexto e gerando resposta';
+            } else {
+                if (st) st.textContent = 'Pode falar';
+                if (sub) sub.textContent = 'Aguardando sua pergunta ou comando de voz';
             }
-            const orb = document.getElementById('liveOrb');
-            if (orb) {
-                orb.classList.toggle('speaking', state.speaking);
-                orb.classList.toggle('listening', listening && !state.speaking);
-                orb.classList.toggle('thinking', state.busy && !state.speaking);
+
+            if (orbWrapper) {
+                orbWrapper.classList.toggle('speaking', state.speaking);
+                orbWrapper.classList.toggle('listening', listening && !state.speaking && !state.muted);
+                orbWrapper.classList.toggle('thinking', state.busy && !state.speaking);
+                orbWrapper.classList.toggle('muted', !!state.muted);
+            }
+
+            const engineName = document.getElementById('geminiEngineName');
+            if (engineName && state.voice) {
+                const isEdge = state.voice.startsWith('pt-BR-');
+                engineName.textContent = isEdge ? 'Microsoft Neural' : 'Piper Local';
             }
         } catch (e) {}
     }
 
-    // ── Painel Live: substitui a caixa de texto quando ativo ──
+    // ── Painel Live: substitui a tela principal (mantendo a barra lateral) ──
     function buildLivePanel() {
         try {
             if (document.getElementById('livePanel')) return;
-            const zone = document.querySelector('.input-zone');
-            if (!zone) return;
+            const main = document.querySelector('.main');
+            if (!main) return;
             const panel = document.createElement('div');
             panel.id = 'livePanel';
+            panel.className = 'gemini-live-panel';
             panel.style.display = 'none';
             panel.innerHTML =
-                '<div class="live-orb" id="liveOrb"><canvas id="liveWave" width="280" height="72"></canvas></div>' +
-                '<div class="live-status" id="liveStatus">Pode falar</div>' +
-                '<button class="live-end" id="liveEndBtn" title="Encerrar Live">✕ Encerrar live</button>';
-            zone.parentNode.insertBefore(panel, zone.nextSibling);
-            document.getElementById('liveEndBtn').addEventListener('click', () => toggle());
-            startWaveLoop();
+                '<div class="gemini-live-header">' +
+                    '<div class="gemini-live-badge">' +
+                        '<span class="gemini-live-pulse-dot"></span>' +
+                        '<span>Modo Live Ativo</span>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div class="gemini-center-stage">' +
+                    '<div class="gemini-orb-wrapper" id="geminiOrbWrapper">' +
+                        '<div class="gemini-orb-ambient-glow" id="geminiOrbGlow"></div>' +
+                        '<div class="gemini-orb-rings">' +
+                            '<div class="gemini-ring ring-1"></div>' +
+                            '<div class="gemini-ring ring-2"></div>' +
+                            '<div class="gemini-ring ring-3"></div>' +
+                        '</div>' +
+                        '<canvas id="liveOrbCanvas" width="280" height="280"></canvas>' +
+                    '</div>' +
+
+                    '<div class="gemini-status-block">' +
+                        '<div class="gemini-status-title" id="liveStatus">Ouvindo você…</div>' +
+                        '<div class="gemini-status-sub" id="liveStatusSub">Fale normalmente, o microfone está ativo</div>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div class="gemini-dock">' +
+                    '<button class="gemini-end-btn" id="liveEndBtn" title="Encerrar Modo Live">' +
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="18" height="18">' +
+                            '<line x1="18" y1="6" x2="6" y2="18"/>' +
+                            '<line x1="6" y1="6" x2="18" y2="18"/>' +
+                        '</svg>' +
+                        '<span>Encerrar</span>' +
+                    '</button>' +
+                '</div>';
+
+            main.appendChild(panel);
+
+            const endBtn = document.getElementById('liveEndBtn');
+            if (endBtn) endBtn.addEventListener('click', () => toggle());
+
+            startOrbAnimationLoop();
         } catch (e) { console.warn('live panel falhou:', e); }
     }
 
     function showLivePanel(on) {
         try {
             buildLivePanel();
-            const zone = document.querySelector('.input-zone');
             const panel = document.getElementById('livePanel');
-            if (zone) zone.style.display = on ? 'none' : '';
-            if (panel) panel.style.display = on ? 'flex' : 'none';
-        } catch (e) {}
+            const zone = document.querySelector('.input-zone');
+            const hero = document.getElementById('welcomeHero');
+            const chat = document.getElementById('chatArea');
+            const topbar = document.querySelector('.topbar');
+
+            if (on) {
+                if (zone) zone.style.display = 'none';
+                if (hero) hero.style.display = 'none';
+                if (chat) chat.style.display = 'none';
+                if (topbar) topbar.style.display = 'none';
+                if (panel) panel.style.display = 'flex';
+            } else {
+                if (panel) panel.style.display = 'none';
+                if (topbar) topbar.style.display = '';
+                if (zone) zone.style.display = '';
+                if (typeof renderCurrentMessages === 'function') {
+                    renderCurrentMessages();
+                } else {
+                    if (chat && chat.children.length > 0) {
+                        chat.style.display = 'block';
+                        if (hero) hero.style.display = 'none';
+                    } else if (hero) {
+                        hero.style.display = 'flex';
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('showLivePanel erro:', e);
+        }
     }
 
     // ── Web Audio: waveform reage ao mic e à fala ──
@@ -186,6 +267,65 @@
         } catch (e) {}
     }
 
+    // ── Efeitos Sonoros Sutis de Início e Fim (Web Audio Sintetizado) ──
+    function playLiveChime(type) {
+        try {
+            const ctx = liveEnsureCtx();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            if (type === 'start') {
+                // Chime de Ativação: Acorde arpeggiado ascendente futurista (C5 -> E5 -> G5 -> C6)
+                const notes = [
+                    { f: 523.25, t: 0.00, d: 0.14, v: 0.16 }, // C5
+                    { f: 659.25, t: 0.07, d: 0.16, v: 0.18 }, // E5
+                    { f: 783.99, t: 0.14, d: 0.18, v: 0.20 }, // G5
+                    { f: 1046.50, t: 0.21, d: 0.32, v: 0.22 }, // C6
+                ];
+                notes.forEach(n => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(n.f, now + n.t);
+
+                    gain.gain.setValueAtTime(0.0001, now + n.t);
+                    gain.gain.exponentialRampToValueAtTime(n.v, now + n.t + 0.015);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + n.t + n.d);
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start(now + n.t);
+                    osc.stop(now + n.t + n.d + 0.05);
+                });
+            } else if (type === 'end') {
+                // Chime de Desativação: Dois tons descendentes suaves e aveludados (G5 -> C5)
+                const notes = [
+                    { f: 783.99, t: 0.00, d: 0.14, v: 0.16 }, // G5
+                    { f: 523.25, t: 0.09, d: 0.28, v: 0.14 }, // C5
+                ];
+                notes.forEach(n => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(n.f, now + n.t);
+
+                    gain.gain.setValueAtTime(0.0001, now + n.t);
+                    gain.gain.exponentialRampToValueAtTime(n.v, now + n.t + 0.015);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + n.t + n.d);
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start(now + n.t);
+                    osc.stop(now + n.t + n.d + 0.05);
+                });
+            }
+        } catch (e) {
+            console.warn('Erro ao tocar efeito sonoro live:', e);
+        }
+    }
+
     // ouvindo = ditado do Chrome ativo (classe do botão) ou gravação local
     function liveIsListening() {
         try {
@@ -212,35 +352,186 @@
         } catch (e) { return { bars: out, live: false }; }
     }
 
-    let waveT = 0;
-    function startWaveLoop() {
+    let orbT = 0;
+    const orbParticles = Array.from({ length: 18 }, (_, i) => ({
+        angle: (i / 18) * Math.PI * 2,
+        dist: 78 + Math.random() * 36,
+        speed: 0.007 + Math.random() * 0.012,
+        size: 1.5 + Math.random() * 2,
+        alpha: 0.35 + Math.random() * 0.5,
+    }));
+
+    function startOrbAnimationLoop() {
         try {
-            const cv = document.getElementById('liveWave');
+            const cv = document.getElementById('liveOrbCanvas');
             if (!cv) return;
             const cx = cv.getContext('2d');
-            const N = 48;
+
             function frame() {
                 try {
                     const panel = document.getElementById('livePanel');
                     if (panel && panel.style.display !== 'none') {
                         const W = cv.width, H = cv.height;
+                        const centerX = W / 2, centerY = H / 2;
                         cx.clearRect(0, 0, W, H);
-                        const { bars, live } = waveLevels(N);
-                        waveT += 0.09;
-                        const gap = 2, bw = (W - (N - 1) * gap) / N;
-                        cx.fillStyle = state.speaking ? '#22c55e'
-                            : liveIsListening() ? '#4ade80'
-                            : 'rgba(130,130,150,.55)';
-                        for (let i = 0; i < N; i++) {
-                            let v;
-                            if (live) v = bars[i];
-                            else if (state.busy && !state.speaking) v = 0.16 + 0.12 * Math.sin(waveT * 1.6 + i * 0.3);
-                            else v = 0.07 + 0.05 * Math.sin(waveT + i * 0.5);
-                            const h = Math.max(3, v * (H - 8));
-                            const x = i * (bw + gap), y = (H - h) / 2;
-                            if (cx.roundRect) { cx.beginPath(); cx.roundRect(x, y, bw, h, bw / 2); cx.fill(); }
-                            else cx.fillRect(x, y, bw, h);
+
+                        const { bars, live } = waveLevels(32);
+                        let avgLevel = 0;
+                        if (live && bars.length) {
+                            avgLevel = bars.reduce((a, b) => a + b, 0) / bars.length;
                         }
+                        if (state.muted) avgLevel = 0;
+
+                        orbT += 0.028;
+
+                        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+
+                        // Cores do orbe adaptadas por estado e tema
+                        let pRGB, sRGB, aRGB;
+                        if (state.muted) {
+                            pRGB = isLight ? [100, 116, 139] : [148, 163, 184];
+                            sRGB = isLight ? [148, 163, 184] : [100, 116, 139];
+                            aRGB = isLight ? [71, 85, 105] : [51, 65, 85];
+                        } else if (state.speaking) {
+                            pRGB = isLight ? [2, 132, 199] : [6, 182, 212];
+                            sRGB = isLight ? [37, 99, 235] : [59, 130, 246];
+                            aRGB = isLight ? [13, 148, 136] : [34, 197, 94];
+                        } else if (state.busy) {
+                            pRGB = isLight ? [147, 51, 234] : [168, 85, 247];
+                            sRGB = isLight ? [219, 39, 119] : [236, 72, 153];
+                            aRGB = isLight ? [37, 99, 235] : [59, 130, 246];
+                        } else {
+                            pRGB = isLight ? [16, 185, 129] : [34, 197, 94];
+                            sRGB = isLight ? [5, 150, 105] : [16, 185, 129];
+                            aRGB = isLight ? [2, 132, 199] : [6, 182, 212];
+                        }
+
+                        // 1. Partículas orbitais sutis (poeira estelar)
+                        for (let p of orbParticles) {
+                            p.angle += p.speed;
+                            const px = centerX + Math.cos(p.angle) * p.dist;
+                            const py = centerY + Math.sin(p.angle) * p.dist;
+                            cx.beginPath();
+                            cx.arc(px, py, p.size, 0, Math.PI * 2);
+                            cx.fillStyle = `rgba(${pRGB[0]}, ${pRGB[1]}, ${pRGB[2]}, ${p.alpha * (isLight ? 0.45 : 0.65)})`;
+                            cx.fill();
+                        }
+
+                        // 2. Halo / Aura difusa externa
+                        const auraR = 86 + (avgLevel * 18) + Math.sin(orbT * 1.2) * 3;
+                        const auraGrad = cx.createRadialGradient(centerX, centerY, 48, centerX, centerY, auraR);
+                        const auraAlpha = isLight ? 0.22 : 0.35;
+                        auraGrad.addColorStop(0, `rgba(${pRGB[0]}, ${pRGB[1]}, ${pRGB[2]}, ${auraAlpha})`);
+                        auraGrad.addColorStop(0.55, `rgba(${sRGB[0]}, ${sRGB[1]}, ${sRGB[2]}, ${auraAlpha * 0.4})`);
+                        auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                        cx.fillStyle = auraGrad;
+                        cx.beginPath();
+                        cx.arc(centerX, centerY, auraR, 0, Math.PI * 2);
+                        cx.fill();
+
+                        // 3. Raio Perfeito e Circular (sem contornos de ameba / desenho animado)
+                        const pulse = (live || state.speaking) ? (avgLevel * 9) : Math.sin(orbT * 1.4) * 1.6;
+                        const R = 68 + pulse;
+
+                        // 4. Esfera 3D Volumétrica com Dinâmica Interna de Plasma
+                        cx.save();
+                        // CLIP RIGOROSAMENTE CIRCULAR
+                        cx.beginPath();
+                        cx.arc(centerX, centerY, R, 0, Math.PI * 2);
+                        cx.clip();
+
+                        // a) Base 3D esférica com profundidade óptica
+                        const sphereGrad = cx.createRadialGradient(
+                            centerX - R * 0.28, centerY - R * 0.32, R * 0.05,
+                            centerX, centerY, R
+                        );
+                        if (isLight) {
+                            sphereGrad.addColorStop(0, '#ffffff');
+                            sphereGrad.addColorStop(0.22, `rgba(${pRGB[0]}, ${pRGB[1]}, ${pRGB[2]}, 0.88)`);
+                            sphereGrad.addColorStop(0.68, `rgba(${sRGB[0]}, ${sRGB[1]}, ${sRGB[2]}, 0.95)`);
+                            sphereGrad.addColorStop(1, `rgba(${aRGB[0]}, ${aRGB[1]}, ${aRGB[2]}, 1)`);
+                        } else {
+                            sphereGrad.addColorStop(0, '#ffffff');
+                            sphereGrad.addColorStop(0.2, `rgba(${pRGB[0]}, ${pRGB[1]}, ${pRGB[2]}, 0.92)`);
+                            sphereGrad.addColorStop(0.65, `rgba(${sRGB[0]}, ${sRGB[1]}, ${sRGB[2]}, 0.85)`);
+                            sphereGrad.addColorStop(1, `rgba(${aRGB[0]}, ${aRGB[1]}, ${aRGB[2]}, 0.55)`);
+                        }
+                        cx.fillStyle = sphereGrad;
+                        cx.fillRect(centerX - R, centerY - R, R * 2, R * 2);
+
+                        // b) Vórtices internos em movimento caustico
+                        cx.save();
+                        cx.globalCompositeOperation = 'screen';
+
+                        const speedMult = (state.speaking || live) ? 1.7 : 1.0;
+                        const vx1 = centerX + Math.cos(orbT * 1.1 * speedMult) * (R * 0.26);
+                        const vy1 = centerY + Math.sin(orbT * 0.85 * speedMult) * (R * 0.22);
+                        const vg1 = cx.createRadialGradient(vx1, vy1, 2, vx1, vy1, R * 0.65);
+                        vg1.addColorStop(0, `rgba(255, 255, 255, ${0.5 + avgLevel * 0.4})`);
+                        vg1.addColorStop(0.5, `rgba(${pRGB[0]}, ${pRGB[1]}, ${pRGB[2]}, 0.4)`);
+                        vg1.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                        cx.fillStyle = vg1;
+                        cx.beginPath();
+                        cx.arc(vx1, vy1, R * 0.65, 0, Math.PI * 2);
+                        cx.fill();
+
+                        const vx2 = centerX + Math.cos(-orbT * 1.3 * speedMult + 2.2) * (R * 0.3);
+                        const vy2 = centerY + Math.sin(-orbT * 1.05 * speedMult + 1.4) * (R * 0.26);
+                        const vg2 = cx.createRadialGradient(vx2, vy2, 2, vx2, vy2, R * 0.6);
+                        vg2.addColorStop(0, `rgba(${aRGB[0]}, ${aRGB[1]}, ${aRGB[2]}, ${0.45 + avgLevel * 0.3})`);
+                        vg2.addColorStop(0.6, `rgba(${sRGB[0]}, ${sRGB[1]}, ${sRGB[2]}, 0.25)`);
+                        vg2.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                        cx.fillStyle = vg2;
+                        cx.beginPath();
+                        cx.arc(vx2, vy2, R * 0.6, 0, Math.PI * 2);
+                        cx.fill();
+
+                        // c) Núcleo reativo à frequência da voz
+                        const coreR = (R * 0.22) + (avgLevel * R * 0.24);
+                        const coreGrad = cx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreR);
+                        coreGrad.addColorStop(0, 'rgba(255, 255, 255, 0.92)');
+                        coreGrad.addColorStop(0.4, `rgba(${pRGB[0]}, ${pRGB[1]}, ${pRGB[2]}, 0.65)`);
+                        coreGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                        cx.fillStyle = coreGrad;
+                        cx.beginPath();
+                        cx.arc(centerX, centerY, coreR, 0, Math.PI * 2);
+                        cx.fill();
+
+                        cx.restore();
+
+                        // d) Fresnel Rim Light (Luz de borda reflexiva interna)
+                        const rimGrad = cx.createRadialGradient(centerX, centerY, R * 0.72, centerX, centerY, R);
+                        rimGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                        rimGrad.addColorStop(0.85, 'rgba(255, 255, 255, 0.15)');
+                        rimGrad.addColorStop(1, 'rgba(255, 255, 255, 0.55)');
+                        cx.fillStyle = rimGrad;
+                        cx.fillRect(centerX - R, centerY - R, R * 2, R * 2);
+
+                        // e) Reflexo Especular Superior de Vidro
+                        cx.save();
+                        cx.beginPath();
+                        cx.ellipse(centerX - R * 0.22, centerY - R * 0.32, R * 0.38, R * 0.16, -Math.PI / 5, 0, Math.PI * 2);
+                        const specGrad = cx.createLinearGradient(
+                            centerX - R * 0.45, centerY - R * 0.45,
+                            centerX - R * 0.05, centerY - R * 0.15
+                        );
+                        specGrad.addColorStop(0, 'rgba(255, 255, 255, 0.75)');
+                        specGrad.addColorStop(0.6, 'rgba(255, 255, 255, 0.18)');
+                        specGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                        cx.fillStyle = specGrad;
+                        cx.fill();
+                        cx.restore();
+
+                        cx.restore(); // fim do clip circular
+
+                        // 5. Linha de Borda Sutil e Fina
+                        cx.save();
+                        cx.beginPath();
+                        cx.arc(centerX, centerY, R, 0, Math.PI * 2);
+                        cx.lineWidth = 1.0;
+                        cx.strokeStyle = isLight ? 'rgba(0, 0, 0, 0.09)' : 'rgba(255, 255, 255, 0.28)';
+                        cx.stroke();
+                        cx.restore();
                     }
                 } catch (e) {}
                 requestAnimationFrame(frame);
@@ -439,6 +730,7 @@
     async function toggle() {
         if (state.enabled) {
             state.enabled = false;
+            playLiveChime('end');
             liveKeepOff();
             liveMicUntap();
             showLivePanel(false);
@@ -451,11 +743,9 @@
             } catch (e) {}
             if (state.autoSendTimer) { clearTimeout(state.autoSendTimer); state.autoSendTimer = null; }
             paintBtn();
-            toast('Modo Live desligado.');
             return;
         }
         // ligando: verifica motor primeiro (primeira voz pode baixar ~60MB)
-        toast('Ativando Live… verificando voz local.');
         const ok = await checkEngine();
         state.engineOk = ok;
         if (!ok) {
@@ -470,13 +760,31 @@
             const res = await fetch(API.voices);
             if (res.ok) {
                 const data = await res.json();
-                if (data.default && !state.voice) state.voice = data.default;
+                const savedVoice = localStorage.getItem('live_voice_pref');
+                const voiceSel = document.getElementById('liveVoiceSelect');
+                if (voiceSel && Array.isArray(data.voices)) {
+                    voiceSel.innerHTML = '';
+                    data.voices.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        opt.textContent = v.name || v.id;
+                        voiceSel.appendChild(opt);
+                    });
+                }
+                if (savedVoice && data.voices && data.voices.some(v => v.id === savedVoice)) {
+                    state.voice = savedVoice;
+                } else if (data.default) {
+                    state.voice = data.default;
+                }
+                if (voiceSel && state.voice) {
+                    voiceSel.value = state.voice;
+                }
             }
-        } catch (e) {}
+        } catch (e) { console.warn('Falha ao listar vozes:', e); }
         showLivePanel(true);
+        playLiveChime('start');
         liveMicTap(); // visual da waveform (não grava, só mede o volume)
         paintBtn();
-        toast('Live ligado — pode falar.');
         // já entra ouvindo: não precisa clicar no mic
         try {
             const b = document.getElementById('micBtn');
@@ -745,6 +1053,166 @@
             clearInterval(iv);
         } else if (tries > 50) clearInterval(iv);
     }, 200);
+
+    // ── Gestão do Modo Live no Modal de Configurações ──
+    async function initLiveSettingsTab() {
+        try {
+            const voiceSelect = document.getElementById('modalLiveVoiceSelect');
+            const speedRange = document.getElementById('liveSpeedRange');
+            const speedDisplay = document.getElementById('liveSpeedDisplay');
+
+            const savedSpeed = parseFloat(localStorage.getItem('live_speed_pref')) || state.speed || 0.95;
+            state.speed = savedSpeed;
+            if (speedRange) speedRange.value = savedSpeed;
+            if (speedDisplay) speedDisplay.textContent = savedSpeed.toFixed(2) + 'x';
+
+            const res = await fetch(API.voices);
+            if (res.ok) {
+                const data = await res.json();
+                if (voiceSelect && Array.isArray(data.voices)) {
+                    voiceSelect.innerHTML = '';
+                    const savedVoice = localStorage.getItem('live_voice_pref') || state.voice || data.default;
+                    data.voices.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        const icon = v.engine === 'edge-tts' ? '🌐' : '💻';
+                        opt.textContent = `${icon} ${v.name || v.id}`;
+                        voiceSelect.appendChild(opt);
+                    });
+                    if (savedVoice) {
+                        voiceSelect.value = savedVoice;
+                        state.voice = savedVoice;
+                    }
+                    onModalLiveVoiceChange(voiceSelect.value);
+                }
+            }
+
+            const hRes = await fetch(API.health);
+            if (hRes.ok) {
+                const hData = await hRes.json();
+                const edgeBadge = document.getElementById('liveEdgeStatusBadge');
+                const piperBadge = document.getElementById('livePiperStatusBadge');
+                const sttBadge = document.getElementById('liveSttStatusBadge');
+                if (edgeBadge && hData.live) {
+                    edgeBadge.textContent = hData.live.edge_tts ? 'Ativo' : 'Indisponível';
+                    edgeBadge.style.color = hData.live.edge_tts ? '#22c55e' : '#f59e0b';
+                }
+                if (piperBadge && hData.live) {
+                    piperBadge.textContent = (hData.live.python_lib || hData.live.cli) ? 'Pronto (Fallback)' : 'Não instalado';
+                    piperBadge.style.color = (hData.live.python_lib || hData.live.cli) ? '#3b82f6' : 'var(--text-dim)';
+                }
+                if (sttBadge && hData.stt) {
+                    sttBadge.textContent = hData.stt.available ? 'Pronto' : 'Indisponível';
+                    sttBadge.style.color = hData.stt.available ? '#22c55e' : 'var(--text-dim)';
+                }
+            }
+        } catch (e) {
+            console.warn('initLiveSettingsTab falhou:', e);
+        }
+    }
+
+    function onModalLiveVoiceChange(val) {
+        const desc = document.getElementById('modalLiveVoiceDesc');
+        if (!desc) return;
+        if (val && val.startsWith('pt-BR-')) {
+            desc.innerHTML = '<span style="color: #22c55e; font-weight: 600;">● Voz Neural (Nuvem):</span> Alta naturalidade, entonação e expressividade humana.';
+        } else {
+            desc.innerHTML = '<span style="color: #3b82f6; font-weight: 600;">● Voz Piper (Local):</span> 100% offline, processada diretamente no computador.';
+        }
+    }
+
+    function updateLiveSpeedPreview(val) {
+        const disp = document.getElementById('liveSpeedDisplay');
+        const num = parseFloat(val) || 0.95;
+        if (disp) disp.textContent = num.toFixed(2) + 'x';
+    }
+
+    let sampleAudio = null;
+    async function testLiveVoiceSample() {
+        const btn = document.getElementById('testVoiceBtn');
+        const btnText = document.getElementById('testVoiceBtnText');
+        const voiceSelect = document.getElementById('modalLiveVoiceSelect');
+        const speedRange = document.getElementById('liveSpeedRange');
+
+        const voice = voiceSelect ? voiceSelect.value : state.voice;
+        const speed = speedRange ? parseFloat(speedRange.value) : state.speed;
+
+        if (sampleAudio) {
+            try { sampleAudio.pause(); } catch (e) {}
+            sampleAudio = null;
+        }
+
+        if (btnText) btnText.textContent = 'Gerando amostra…';
+        if (btn) btn.disabled = true;
+
+        try {
+            const res = await fetch(API.speak, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: 'Olá! Esta é uma demonstração da síntese de voz no Modo Live.',
+                    voice: voice,
+                    speed: speed,
+                }),
+            });
+            if (!res.ok) {
+                toast('Erro ao gerar amostra: HTTP ' + res.status, true);
+                if (btnText) btnText.textContent = 'Ouvir Amostra da Voz';
+                if (btn) btn.disabled = false;
+                return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            sampleAudio = new Audio(url);
+            sampleAudio.play();
+            const resetBtn = () => {
+                if (btnText) btnText.textContent = 'Ouvir Amostra da Voz';
+                if (btn) btn.disabled = false;
+                setTimeout(() => URL.revokeObjectURL(url), 5000);
+            };
+            sampleAudio.onended = resetBtn;
+            sampleAudio.onerror = resetBtn;
+        } catch (e) {
+            toast('Falha ao reproduzir amostra: ' + e, true);
+            if (btnText) btnText.textContent = 'Ouvir Amostra da Voz';
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    function saveLiveSettingsFromModal() {
+        const voiceSelect = document.getElementById('modalLiveVoiceSelect');
+        const speedRange = document.getElementById('liveSpeedRange');
+        const feedback = document.getElementById('liveSettingsFeedback');
+
+        const chosenVoice = voiceSelect ? voiceSelect.value : state.voice;
+        const chosenSpeed = speedRange ? parseFloat(speedRange.value) : state.speed;
+
+        if (chosenVoice) {
+            state.voice = chosenVoice;
+            try { localStorage.setItem('live_voice_pref', chosenVoice); } catch (e) {}
+            const liveVoiceSelect = document.getElementById('liveVoiceSelect');
+            if (liveVoiceSelect) liveVoiceSelect.value = chosenVoice;
+        }
+
+        if (chosenSpeed) {
+            state.speed = chosenSpeed;
+            try { localStorage.setItem('live_speed_pref', chosenSpeed); } catch (e) {}
+        }
+
+        if (feedback) {
+            feedback.style.display = 'block';
+            feedback.style.color = '#22c55e';
+            feedback.textContent = '✓ Preferências de voz salvas com sucesso!';
+            setTimeout(() => { feedback.style.display = 'none'; }, 3000);
+        }
+        toast('Configurações do Modo Live salvas.');
+    }
+
+    window.initLiveSettingsTab = initLiveSettingsTab;
+    window.onModalLiveVoiceChange = onModalLiveVoiceChange;
+    window.updateLiveSpeedPreview = updateLiveSpeedPreview;
+    window.testLiveVoiceSample = testLiveVoiceSample;
+    window.saveLiveSettingsFromModal = saveLiveSettingsFromModal;
 
     window.LiveMode = {
         toggle,

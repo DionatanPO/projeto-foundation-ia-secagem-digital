@@ -80,9 +80,25 @@ class LMMService:
                 chat_handler = Llava15ChatHandler(clip_model_path=mmproj_path)
 
             n_threads = settings.N_THREADS
-            n_gpu_layers = -1 if use_gpu else 0
+            # N_GPU_LAYERS do .env é o padrão quando o usuário escolhe GPU.
+            # -1 = todas as camadas na VRAM. 0 = CPU puro.
+            configured_layers = getattr(settings, 'N_GPU_LAYERS', 0)
+            if use_gpu:
+                n_gpu_layers = configured_layers if configured_layers != 0 else -1
+            else:
+                n_gpu_layers = 0
             n_ctx = settings.N_CTX
             use_flash_attn = settings.USE_FLASH_ATTN
+
+            logger.info(
+                "Inicializando Llama | n_gpu_layers=%s (use_gpu=%s, N_GPU_LAYERS=%s) | n_ctx=%s | n_threads=%s",
+                n_gpu_layers, use_gpu, configured_layers, n_ctx, n_threads,
+            )
+            try:
+                from llama_cpp.llama_cpp import llama_print_system_info
+                logger.info("llama.cpp backend: %s", llama_print_system_info().decode().strip())
+            except Exception:
+                pass
 
             self._model = Llama(
                 model_path=model_path,
@@ -90,14 +106,35 @@ class LMMService:
                 n_ctx=n_ctx,
                 n_threads=n_threads,
                 n_gpu_layers=n_gpu_layers,
-                flash_attn=use_flash_attn
+                flash_attn=use_flash_attn,
+                verbose=True,
             )
 
             self._patch_chat_template()
 
             self._current_model_path = model_path
+            self._n_gpu_layers = n_gpu_layers
             device = "GPU" if n_gpu_layers != 0 else "CPU"
             logger.info("Modelo carregado na %s: %s", device, os.path.basename(model_path))
+            if n_gpu_layers != 0:
+                # Se o build for CPU-only, o llama.cpp ignora n_gpu_layers em silêncio.
+                # Avisar no log para não parecer que foi para a GPU.
+                try:
+                    import llama_cpp
+                    has_gpu_backend = bool(getattr(llama_cpp, 'llama_supports_gpu_offload', lambda: False)())
+                    if not has_gpu_backend:
+                        from llama_cpp.llama_cpp import llama_print_system_info
+                        backend = llama_print_system_info().decode()
+                        has_gpu_backend = any(k in backend for k in ("VULKAN", "CUDA", "HIP", "METAL", "SYCL", "GPU"))
+                    if not has_gpu_backend:
+                        logger.warning(
+                            "n_gpu_layers=%s pedido, mas o build do llama-cpp-python é CPU-only "
+                            "(sem suporte a GPU offload/Vulkan/CUDA). Reinstale com suporte a Vulkan "
+                            "para usar a GPU AMD. Modelo rodando em CPU.",
+                            n_gpu_layers,
+                        )
+                except Exception:
+                    pass
         except Exception as e:
             logger.error("Erro ao carregar o modelo: %s", e)
             import traceback
@@ -160,6 +197,35 @@ class LMMService:
             return os.path.basename(self._current_model_path)
         return "Nenhum modelo carregado"
 
+    def get_device_info(self):
+        """
+        Retorna onde o modelo está (pedido) e qual backend o build suporta.
+        O frontend usa isso para mostrar CPU vs GPU de verdade.
+        """
+        has_gpu_backend = False
+        backend = ""
+        try:
+            import llama_cpp
+            if getattr(llama_cpp, 'llama_supports_gpu_offload', lambda: False)():
+                has_gpu_backend = True
+            from llama_cpp.llama_cpp import llama_print_system_info
+            backend = llama_print_system_info().decode().strip()
+            if not has_gpu_backend:
+                has_gpu_backend = any(k in backend for k in ("VULKAN", "CUDA", "HIP", "METAL", "SYCL", "GPU"))
+            if has_gpu_backend and not any(k in backend for k in ("VULKAN", "CUDA", "HIP", "METAL", "SYCL")):
+                backend = f"Vulkan/GPU [Offload: Sim] | {backend}"
+        except Exception as e:
+            backend = f"indisponível ({e})"
+        n_gpu_layers = getattr(self, '_n_gpu_layers', 0)
+        return {
+            "n_gpu_layers": n_gpu_layers,
+            "device_requested": "gpu" if n_gpu_layers != 0 else "cpu",
+            # gpu_enabled só é True se foi pedido E o build tem backend de GPU
+            "gpu_enabled": bool(n_gpu_layers != 0 and has_gpu_backend and self._model is not None),
+            "gpu_backend_available": has_gpu_backend,
+            "backend_info": backend,
+        }
+
     def switch_model(self, model_name, use_gpu=False):
         """
         Troca o modelo atual por um novo.
@@ -193,6 +259,7 @@ class LMMService:
             self._model = None
             if hasattr(self, '_current_model_path'):
                 del self._current_model_path
+            self._n_gpu_layers = 0
             
             gc.collect()
             logger.info("[OK] Modelo LMM descarregado com sucesso.")

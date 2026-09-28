@@ -52,6 +52,7 @@ function toggleModal(show) {
     if (show) {
         modal.classList.add('show');
         try { updateHistoryCountInfo(); } catch (e) {}
+        try { if (window.initLiveSettingsTab) window.initLiveSettingsTab(); } catch (e) {}
     } else {
         modal.classList.remove('show');
     }
@@ -1005,10 +1006,15 @@ async function changeModel(modelName, element) {
         });
 
         if (response.ok) {
+            const data = await response.json().catch(() => ({}));
+            if (data.warning) {
+                alert(data.warning);
+            }
             await loadModels(); // Atualiza a lista
             window.updateRAM(); // Atualiza uso de memória
         } else {
-            alert("Erro ao trocar o modelo.");
+            const errData = await response.json().catch(() => ({}));
+            alert(errData.error || "Erro ao trocar o modelo.");
             loadModels();
         }
     } catch (err) {
@@ -1062,35 +1068,6 @@ async function loadModels() {
         });
     } catch (err) {
         console.error("Erro ao carregar modelos:", err);
-    }
-}
-
-async function changeModel(modelName, element) {
-    if (isWaiting) return;
-
-    // UI Feedback
-    const allItems = document.querySelectorAll('.model-item');
-    allItems.forEach(i => i.classList.remove('active', 'switching'));
-    element.classList.add('switching');
-
-    try {
-        const useGpu = document.getElementById('hardwareSelect').value === 'gpu';
-        const response = await fetch('/api/switch-model/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model_name: modelName, use_gpu: useGpu })
-        });
-
-        if (response.ok) {
-            await loadModels(); // Atualiza a lista
-            window.updateRAM(); // Atualiza uso de memória
-        } else {
-            alert("Erro ao trocar o modelo.");
-            loadModels();
-        }
-    } catch (err) {
-        console.error("Erro:", err);
-        loadModels();
     }
 }
 

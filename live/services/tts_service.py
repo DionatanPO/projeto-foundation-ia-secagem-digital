@@ -2,6 +2,8 @@
 
 Não importa nada de api/services. Falhas aqui nunca afetam o chat.
 """
+import asyncio
+import concurrent.futures
 import hashlib
 import logging
 import re
@@ -17,8 +19,40 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(settings.BASE_DIR)
 
-# Voz padrão (pode trocar via .env: PIPER_VOICE=pt_BR-cadu-medium)
-DEFAULT_VOICE = getattr(settings, 'PIPER_VOICE', 'pt_BR-faber-medium')
+# Catálogo de vozes neurais de alta fidelidade (Edge-TTS - Microsoft Neural)
+EDGE_VOICES = {
+    'pt-BR-AntonioNeural': {
+        'id': 'pt-BR-AntonioNeural',
+        'name': 'Antonio (Masculina Neural - Muito Natural)',
+        'gender': 'male',
+        'engine': 'edge-tts',
+    },
+    'pt-BR-FranciscaNeural': {
+        'id': 'pt-BR-FranciscaNeural',
+        'name': 'Francisca (Feminina Neural - Muito Natural)',
+        'gender': 'female',
+        'engine': 'edge-tts',
+    },
+    'pt-BR-ThalitaMultilingualNeural': {
+        'id': 'pt-BR-ThalitaMultilingualNeural',
+        'name': 'Thalita (Feminina Neural - Jovem)',
+        'gender': 'female',
+        'engine': 'edge-tts',
+    },
+}
+
+# Alias amigáveis de voz (ex: 'fabio' -> 'pt_BR-faber-medium')
+VOICE_ALIASES = {
+    'fabio': 'pt_BR-faber-medium',
+    'faber': 'pt_BR-faber-medium',
+    'antonio': 'pt-BR-AntonioNeural',
+    'francisca': 'pt-BR-FranciscaNeural',
+    'thalita': 'pt-BR-ThalitaMultilingualNeural',
+    'cadu': 'pt_BR-cadu-medium',
+}
+
+# Voz padrão (pode trocar via .env: LIVE_VOICE=pt_BR-faber-medium ou pt-BR-AntonioNeural)
+DEFAULT_VOICE = getattr(settings, 'LIVE_VOICE', getattr(settings, 'PIPER_VOICE', 'pt_BR-faber-medium'))
 VOICE_DIR = Path(getattr(settings, 'PIPER_MODEL_DIR', BASE_DIR / 'models' / 'tts'))
 CACHE_DIR = Path(getattr(settings, 'PIPER_CACHE_DIR', BASE_DIR / 'storage' / 'tts_cache'))
 MAX_CHARS = int(getattr(settings, 'LIVE_MAX_CHARS', 600))
@@ -30,7 +64,7 @@ DEFAULT_NOISE_W = float(getattr(settings, 'PIPER_NOISE_W', 0.8))
 
 HF_BASE = 'https://huggingface.co/rhasspy/piper-voices/resolve/main'
 
-# Catálogo mínimo pt-BR (onnx + json). Adicione outras vozes aqui sem tocar no resto.
+# Catálogo mínimo pt-BR local (Piper ONNX + JSON)
 VOICE_CATALOG = {
     'pt_BR-faber-medium': (
         f'{HF_BASE}/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx',
@@ -216,14 +250,17 @@ class TTSService:
 
     # ── vozes ──
     def available_voices(self) -> list:
-        found = sorted(p.stem.replace('.onnx', '') for p in VOICE_DIR.glob('*.onnx'))
-        # garante que o catálogo apareça mesmo antes do download
+        voices = []
+        if self._edge_tts_available():
+            voices.extend(list(EDGE_VOICES.keys()))
+        found_piper = sorted(p.stem.replace('.onnx', '') for p in VOICE_DIR.glob('*.onnx'))
         for name in VOICE_CATALOG:
-            if name not in found:
-                found.append(name)
-        if DEFAULT_VOICE not in found:
-            found.insert(0, DEFAULT_VOICE)
-        return found
+            if name not in found_piper:
+                found_piper.append(name)
+        voices.extend(found_piper)
+        if DEFAULT_VOICE not in voices:
+            voices.insert(0, DEFAULT_VOICE)
+        return voices
 
     def voice_files(self, voice: str) -> tuple:
         onnx = VOICE_DIR / f'{voice}.onnx'
@@ -231,6 +268,8 @@ class TTSService:
         return onnx, cfg
 
     def is_voice_downloaded(self, voice: str) -> bool:
+        if voice in EDGE_VOICES or voice.startswith('pt-BR-'):
+            return self._edge_tts_available()
         onnx, cfg = self.voice_files(voice)
         return onnx.exists() and cfg.exists()
 
@@ -267,7 +306,15 @@ class TTSService:
             shutil.copyfileobj(r, f)
         tmp.replace(dest)
 
-    # ── detecção do motor ──
+    # ── detecção dos motores ──
+    @staticmethod
+    def _edge_tts_available() -> bool:
+        try:
+            import edge_tts  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
     @staticmethod
     def _python_piper_available() -> bool:
         try:
@@ -281,11 +328,14 @@ class TTSService:
         return shutil.which('piper') is not None
 
     def status(self) -> dict:
+        edge_ok = self._edge_tts_available()
+        piper_ok = self._python_piper_available() or self._cli_available()
         return {
-            'engine': 'piper',
+            'engine': 'edge-tts' if edge_ok else 'piper',
+            'edge_tts': edge_ok,
             'python_lib': self._python_piper_available(),
             'cli': self._cli_available(),
-            'available': self._python_piper_available() or self._cli_available(),
+            'available': edge_ok or piper_ok,
             'default_voice': DEFAULT_VOICE,
             'default_voice_downloaded': self.is_voice_downloaded(DEFAULT_VOICE),
             'voices': self.available_voices(),
@@ -303,17 +353,35 @@ class TTSService:
         if len(clean) > MAX_CHARS:
             raise ValueError(f'Texto com {len(clean)} caracteres (limite {MAX_CHARS}). Divida em frases.')
         voice = (voice or DEFAULT_VOICE).strip() or DEFAULT_VOICE
+        voice = VOICE_ALIASES.get(voice.lower(), voice)
         speed = max(0.5, min(2.0, float(speed or 1.0)))
+
+        # 1) Tenta sintetizar com Edge-TTS (voz neural ultra-humana)
+        is_edge = voice.startswith('pt-BR-') or voice in EDGE_VOICES
+        if is_edge and self._edge_tts_available():
+            edge_voice = voice if voice in EDGE_VOICES else 'pt-BR-AntonioNeural'
+            key = hashlib.sha1(f'edge_v2|{edge_voice}|{speed:.2f}|{clean}'.encode('utf-8')).hexdigest()
+            out = CACHE_DIR / f'{key}.mp3'
+            if out.exists() and out.stat().st_size > 100:
+                return out
+            try:
+                self._synth_edge(edge_voice, clean, out, speed)
+                if out.exists() and out.stat().st_size > 100:
+                    return out
+            except Exception as e:
+                logger.warning('Edge-TTS falhou (%s), tentando fallback para Piper: %s', edge_voice, e)
+
+        # 2) Fallback ou modo offline via Piper local
+        piper_voice = voice if voice in VOICE_CATALOG else getattr(settings, 'PIPER_VOICE', 'pt_BR-faber-medium')
         ns = max(0.0, min(2.0, float(DEFAULT_NOISE_SCALE if noise_scale is None else noise_scale)))
         nw = max(0.0, min(2.0, float(DEFAULT_NOISE_W if noise_w is None else noise_w)))
 
-        # v2: invalida áudios antigos gerados antes do SynthesisConfig valer
-        key = hashlib.sha1(f'v2|{voice}|{speed:.2f}|{ns:.2f}|{nw:.2f}|{clean}'.encode('utf-8')).hexdigest()
+        key = hashlib.sha1(f'v2|{piper_voice}|{speed:.2f}|{ns:.2f}|{nw:.2f}|{clean}'.encode('utf-8')).hexdigest()
         out = CACHE_DIR / f'{key}.wav'
         if out.exists() and out.stat().st_size > 44:
             return out
 
-        onnx, cfg = self.ensure_voice(voice)
+        onnx, cfg = self.ensure_voice(piper_voice)
 
         with self._synth_lock:  # Piper não é thread-safe; serializa
             if out.exists() and out.stat().st_size > 44:
@@ -328,10 +396,20 @@ class TTSService:
                 self._synth_cli(onnx, cfg, clean, out, speed, ns, nw)
                 return out
         raise PiperNotAvailable(
-            'Motor Piper não encontrado. Instale com: pip install piper-tts onnxruntime '
-            '(no Windows, instale também o espeak-ng e reinicie). '
-            'O chat continua funcionando normalmente sem voz.'
+            'Nenhum motor de voz disponível (Edge-TTS e Piper falharam).'
         )
+
+    def _synth_edge(self, voice: str, text: str, out: Path, speed: float):
+        import edge_tts
+        pct = int(round((speed - 1.0) * 100))
+        rate_str = f"{pct:+d}%"
+
+        async def _run():
+            comm = edge_tts.Communicate(text, voice, rate=rate_str)
+            await comm.save(str(out))
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            pool.submit(lambda: asyncio.run(_run())).result()
 
     def _synth_python(self, onnx: Path, cfg: Path, text: str, out: Path,
                       speed: float, noise_scale: float, noise_w: float):
