@@ -11,8 +11,8 @@ media/
 static_cdn/
 
 # IA Models (Arquivos grandes que não devem ir para o Git comum)
-models/*.gguf
-models/mmproj*
+models/
+storage/
 
 # IDEs
 .vscode/
