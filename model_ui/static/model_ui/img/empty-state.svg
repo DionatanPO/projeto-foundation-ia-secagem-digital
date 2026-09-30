@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect x="140" y="50" width="120" height="120" rx="28" fill="#16a34a"/>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M162 138 L200 78 L238 138" stroke-width="11"/>
+    <path d="M174 122 H226" stroke-width="7"/>
+  </g>
+  <path d="M200 78 C200 68 209 63 218 63 C218 72 209 78 200 78 Z" fill="#d9f99d"/>
+  <circle cx="230" cy="138" r="9" fill="#fbbf24" stroke="#ffffff" stroke-width="3"/>
+  <text x="200" y="205" text-anchor="middle" font-family="Outfit, Segoe UI, Arial, sans-serif" font-size="30" font-weight="700"><tspan fill="#111827">Agro</tspan><tspan fill="#16a34a">Mind</tspan></text>
+  <text x="200" y="235" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#6b7280">Envie uma imagem de telemetria para analisar</text>
+</svg>

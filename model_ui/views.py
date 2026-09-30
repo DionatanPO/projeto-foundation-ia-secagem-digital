@@ -15,6 +15,7 @@ def login_view(request):
         key = request.POST.get('app_key', '').strip()
         if _check_key(key):
             request.session['authenticated'] = True
+            request.session['just_logged_in'] = True
             return redirect('chat-interface')
         else:
             error = 'Chave inválida. Tente novamente.'
@@ -25,4 +26,5 @@ def login_view(request):
 def chat_interface(request):
     if not request.session.get('authenticated'):
         return redirect('login')
-    return render(request, 'model_ui/index.html')
+    show_welcome = bool(request.session.pop('just_logged_in', False))
+    return render(request, 'model_ui/index.html', {'show_welcome': show_welcome})

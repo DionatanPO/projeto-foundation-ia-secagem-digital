@@ -17,6 +17,16 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <link rel="stylesheet" href="{% static 'model_ui/css/style.css' %}?v=13">
+    {# ── Assets do projeto: logo oficial AgroMind ── #}
+    <link rel="icon" href="{% static 'model_ui/img/favicon.ico' %}" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'model_ui/img/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'model_ui/img/favicon-16x16.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'model_ui/img/apple-touch-icon.png' %}">
+    <link rel="manifest" href="{% static 'model_ui/img/site.webmanifest' %}">
+    <meta name="theme-color" content="#16a34a">
+    <meta property="og:image" content="{% static 'model_ui/img/capa.png' %}">
+    <meta property="og:title" content="AgroMind AI">
+    <meta property="og:description" content="Assistente técnico inteligente para secagem digital, silos e grãos.">
 </head>
 
 <body>
@@ -34,6 +44,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand">
+                <img src="{% static 'model_ui/img/agromind.png' %}" alt="AgroMind AI" width="36" height="36" style="border-radius:9px">
                 <div class="brand-text">
                     <span class="brand-name">AgroMind</span>
                 </div>
@@ -86,7 +97,7 @@
             </div>
             
             <div class="welcome-inner">
-                <div class="welcome-mark">✦</div>
+                <img class="welcome-cover" src="{% static 'model_ui/img/capa.png' %}" alt="AgroMind AI — Secagem Digital">
                 <h1 class="welcome-title">Como posso ajudar <em>hoje?</em></h1>
                 <p class="welcome-sub">Assistente inteligente com visão e raciocínio profundo.<br>Pronto para ajudar com
                     secagem, qualidade e gestão de grãos.</p>
@@ -150,6 +161,112 @@
         </div>
 
     </main>
+
+    <!-- Welcome Modal (após login) -->
+    <style>
+        .welcome-backdrop {
+            position: fixed; inset: 0; z-index: 2000;
+            background: rgba(0,0,0,.5);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            display: none; align-items: center; justify-content: center; padding: 20px;
+            opacity: 0; transition: opacity .25s ease;
+        }
+        .welcome-backdrop.show { display: flex; opacity: 1; }
+        .welcome-card {
+            background: var(--surface); color: var(--text);
+            width: 100%; max-width: 960px; border-radius: 24px;
+            border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,.35);
+            padding: 0; text-align: left; position: relative;
+            transform: scale(.95) translateY(10px); transition: transform .25s cubic-bezier(.16,1,.3,1);
+            max-height: 90vh; overflow-y: auto; overflow-x: hidden;
+        }
+        .welcome-backdrop.show .welcome-card { transform: scale(1) translateY(0); }
+        .welcome-card-body { padding: 28px 32px 24px; }
+        .welcome-kicker {
+            font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+            color: var(--accent); margin-bottom: 8px;
+        }
+        .welcome-card h2 { font-size: 24px; font-weight: 600; letter-spacing: -.02em; margin-bottom: 8px; }
+        .welcome-card .welcome-desc { font-size: 14px; line-height: 1.65; color: var(--text-muted); margin-bottom: 20px; }
+        .welcome-feats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; margin-bottom: 20px; }
+        .welcome-feat {
+            display: flex; gap: 12px; align-items: flex-start;
+            background: var(--surface-2); border: 1px solid var(--border);
+            border-radius: 14px; padding: 12px 14px; font-size: 13px; line-height: 1.5; color: var(--text-muted);
+        }
+        .welcome-feat b { color: var(--text); }
+        .welcome-feat .emoji { font-size: 20px; line-height: 1; flex-shrink: 0; margin-top: 1px; }
+        .welcome-privacy {
+            display: flex; gap: 8px; align-items: center; justify-content: center;
+            font-size: 12px; color: #22c55e; background: rgba(34,197,94,.08);
+            border: 1px solid rgba(34,197,94,.2); border-radius: 12px; padding: 10px 12px; margin-bottom: 20px;
+        }
+        .welcome-btn {
+            width: 100%; padding: 14px; border: none; border-radius: 14px; cursor: pointer;
+            background: var(--accent); color: #fff; font-family: var(--font);
+            font-size: 15px; font-weight: 600; transition: all .2s;
+        }
+        [data-theme="dark"] .welcome-btn { color: #072711; }
+        .welcome-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+        .welcome-close-x {
+            position: absolute; top: 14px; right: 14px; width: 32px; height: 32px;
+            border-radius: 50%; border: none; cursor: pointer;
+            background: var(--surface-2); color: var(--text-dim); font-size: 15px;
+        }
+        .welcome-close-x:hover { color: var(--text); }
+        .welcome-hide { display: block; margin: 12px auto 0; font-size: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-family: var(--font); }
+        .welcome-hide:hover { color: var(--text); text-decoration: underline; }
+        @media (max-width: 760px) {
+            .welcome-card { max-width: 540px; }
+            .welcome-feats { grid-template-columns: 1fr; }
+            .welcome-card-body { padding: 26px 20px 20px; }
+        }
+        @media (max-width: 480px) { .welcome-card h2 { font-size: 20px; } }
+    </style>
+    <div class="welcome-backdrop" id="welcomeModal" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+        <div class="welcome-card">
+            <button class="welcome-close-x" onclick="closeWelcome()" aria-label="Fechar">✕</button>
+            <div class="welcome-card-body">
+            <div class="welcome-kicker">Bem-vindo ao AgroMind AI</div>
+            <h2 id="welcomeTitle">Olá! Que bom te ver por aqui 👋</h2>
+            <p class="welcome-desc">
+                Este é seu <b>assistente inteligente da fazenda</b>. Ele ajuda você a cuidar
+                da <b>secagem e armazenagem de grãos</b> de um jeito simples:
+                é só conversar, como no WhatsApp. Sem complicação.
+            </p>
+            <div class="welcome-feats">
+                <div class="welcome-feat"><span class="emoji">💬</span><span><b>Pergunte com palavras simples.</b><br>Ex: “Qual a umidade ideal da soja?” ou “Meu milho está demorando a secar, o que faço?”</span></div>
+                <div class="welcome-feat"><span class="emoji">📸</span><span><b>Mande foto ou fale por voz.</b><br>Envie foto do painel, do silo ou do grão, ou clique no microfone para ditar.</span></div>
+                <div class="welcome-feat"><span class="emoji">📚</span><span><b>Resposta com base técnica.</b><br>Ele consulta manuais e documentos da fazenda antes de responder.</span></div>
+                <div class="welcome-feat"><span class="emoji">🔄</span><span><b>Funciona com IA Local e Remota.</b><br><b>🏠 Local:</b> roda aqui na sua máquina, privada e funciona até sem internet.<br><b>☁️ Remota:</b> conecta em modelos potentes como Claude e GPT. Você troca quando quiser nas Configurações.</span></div>
+            </div>
+            <div class="welcome-privacy">🔒 No modo Local, seus dados ficam 100% nesta máquina. Nada vai para a internet.</div>
+            <button class="welcome-btn" onclick="closeWelcome()">Entendi, vamos começar →</button>
+            <button class="welcome-hide" onclick="hideWelcomeForever()">não mostrar novamente</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var serverShow = {% if show_welcome %}true{% else %}false{% endif %};
+            var hidden = false;
+            try { hidden = localStorage.getItem('hideAgroWelcome') === '1'; } catch (e) {}
+            function openWelcome() { document.getElementById('welcomeModal').classList.add('show'); }
+            window.closeWelcome = function () { document.getElementById('welcomeModal').classList.remove('show'); };
+            window.hideWelcomeForever = function () {
+                try { localStorage.setItem('hideAgroWelcome', '1'); } catch (e) {}
+                window.closeWelcome();
+            };
+            document.getElementById('welcomeModal').addEventListener('click', function (e) {
+                if (e.target === this) window.closeWelcome();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') window.closeWelcome();
+            });
+            if (serverShow && !hidden) { setTimeout(openWelcome, 400); }
+            window.openWelcome = openWelcome;
+        })();
+    </script>
 
     <!-- Settings Modal -->
     <div class="modal-backdrop" id="settingsModal" onclick="if(event.target === this) toggleModal(false)">
@@ -612,7 +729,8 @@
         </div>
     </div>
 
-    <script src="{% static 'model_ui/js/script.js' %}?v=17"></script>
+    <script>window.AGROMIND_ICON_URL = "{% static 'model_ui/img/agromind.png' %}";</script>
+    <script src="{% static 'model_ui/js/script.js' %}?v=18"></script>
     <script src="{% static 'model_ui/js/live.js' %}?v=24"></script>
 </body>
 

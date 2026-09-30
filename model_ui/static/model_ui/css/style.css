@@ -765,6 +765,16 @@ textarea.sys-input {
     background: var(--accent-bg);
     border: 1px solid var(--border);
     color: var(--accent);
+    overflow: hidden;
+    padding: 2px;
+}
+
+.avatar.bot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 50%;
+    display: block;
 }
 
 .avatar.user {
@@ -1429,23 +1439,15 @@ kbd {
     width: 100%;
 }
 
-.welcome-mark {
-    font-size: 48px;
-    color: var(--accent);
-    line-height: 1;
-    margin-bottom: 24px;
-    animation: float-sparkle 3.5s ease-in-out infinite, fade-in-up-smooth 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes float-sparkle {
-    0%, 100% {
-        transform: translateY(0) scale(1) rotate(0deg);
-        filter: drop-shadow(0 0 0px var(--accent-glow));
-    }
-    50% {
-        transform: translateY(-12px) scale(1.12) rotate(12deg);
-        filter: drop-shadow(0 0 16px var(--accent-glow));
-    }
+.welcome-cover {
+    width: 100%;
+    max-width: 560px;
+    height: auto;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
+    margin-bottom: 28px;
+    animation: fade-in-up-smooth 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .welcome-title {

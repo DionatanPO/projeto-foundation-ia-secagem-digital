@@ -5,6 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login — AgroMind AI</title>
+    {# ── Assets do projeto: logo oficial AgroMind ── #}
+    <link rel="icon" href="{% static 'model_ui/img/favicon.ico' %}" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'model_ui/img/favicon-32x32.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'model_ui/img/apple-touch-icon.png' %}">
+    <meta name="theme-color" content="#16a34a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -97,6 +102,15 @@
             display: flex; align-items: center; gap: 12px;
             margin-bottom: 32px;
         }
+        .login-cover {
+            margin: -48px -40px 28px;
+            border-radius: 28px 28px 0 0;
+            overflow: hidden;
+            border-bottom: 1px solid var(--border);
+        }
+        .login-cover img {
+            display: block; width: 100%; height: auto;
+        }
         .brand-mark {
             width: 40px; height: 40px;
             background: var(--accent-bg);
@@ -106,6 +120,7 @@
             flex-shrink: 0;
         }
         .brand-mark svg { width: 22px; height: 22px; color: var(--accent); }
+        .brand-mark img { width: 40px; height: 40px; border-radius: 12px; object-fit: contain; }
         .brand-text { display: flex; flex-direction: column; }
         .brand-name { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
         .brand-sub { font-size: 11px; font-weight: 500; color: var(--text-dim); letter-spacing: .05em; text-transform: uppercase; }
@@ -193,6 +208,7 @@
         .theme-toggle svg { width: 20px; height: 20px; }
         @media (max-width: 480px) {
             .login-card { padding: 32px 24px 28px; border-radius: 20px; margin: 16px; max-width: 100%; }
+            .login-cover { margin: -32px -24px 24px; border-radius: 20px 20px 0 0; }
             .login-title { font-size: 20px; }
         }
     </style>
@@ -211,13 +227,12 @@
     </button>
 
     <div class="login-card">
+        <div class="login-cover">
+            <img src="{% static 'model_ui/img/capa.png' %}" alt="AgroMind AI — Secagem Digital">
+        </div>
         <div class="login-brand">
             <div class="brand-mark">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                    <path d="M2 17l10 5 10-5"/>
-                    <path d="M2 12l10 5 10-5"/>
-                </svg>
+                <img src="{% static 'model_ui/img/agromind.png' %}" alt="AgroMind AI" width="40" height="40" style="border-radius:10px">
             </div>
             <div class="brand-text">
                 <span class="brand-name">AgroMind</span>

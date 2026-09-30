@@ -850,6 +850,12 @@ function extractMetrics(text) {
     return '';
 }
 
+// ── Avatar oficial AgroMind nas respostas do modelo ──
+function botAvatarHTML() {
+    const src = window.AGROMIND_ICON_URL || '/static/model_ui/img/agromind.png';
+    return `<div class="avatar bot"><img src="${src}" alt="AgroMind"></div>`;
+}
+
 function createMsg(text, isUser, imgBase64) {
     const wrap = document.createElement('div');
     wrap.className = `message-wrap ${isUser ? 'user' : 'bot'}`;
@@ -865,7 +871,7 @@ function createMsg(text, isUser, imgBase64) {
         </div>`;
     } else {
         wrap.innerHTML = `
-        <div class="avatar bot">✦</div>
+        ${botAvatarHTML()}
         <div class="msg-body">
             <div class="msg-meta">
                 <span class="msg-name">AgroMind</span>
@@ -924,7 +930,7 @@ function showLoader() {
     wrap.className = 'message-wrap bot';
     wrap.id = 'loaderMsg';
     wrap.innerHTML = `
-    <div class="avatar bot">✦</div>
+    ${botAvatarHTML()}
     <div class="msg-body">
         <div class="msg-meta"><span class="msg-name">AgroMind</span></div>
         <div class="msg-bubble">
