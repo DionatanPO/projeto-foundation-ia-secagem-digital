@@ -7,6 +7,7 @@ import logging
 import json
 import psutil
 import os
+import re
 from .serializers import ChatRequestSerializer, ChatResponseSerializer, ModelSwitchSerializer
 
 logger = logging.getLogger(__name__)
@@ -300,6 +301,138 @@ def clear_rag_storage(request):
     if success:
         return Response({"status": "RAG storage cleared and rebuilt successfully!"}, status=status.HTTP_200_OK)
     return Response({"error": "Failed to clear/rebuild RAG storage"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# ── Documentos da base de conhecimento (RAG) ──
+RAG_ALLOWED_EXTENSIONS = {'.pdf', '.docx', '.doc', '.txt', '.md', '.csv'}
+RAG_MAX_FILE_MB = 50
+RAG_MAX_FILES_PER_REQUEST = 20
+
+
+def _rag_documents_dir():
+    from django.conf import settings as dj_settings
+    docs_dir = os.path.join(dj_settings.BASE_DIR, 'documents')
+    os.makedirs(docs_dir, exist_ok=True)
+    return docs_dir
+
+
+def _sanitize_doc_filename(raw):
+    name = os.path.basename((raw or '').strip())
+    name = re.sub(r'[^\w.\- ]', '_', name, flags=re.UNICODE)
+    name = name.strip(' .')
+    return name[:200] if name else ''
+
+
+def _list_rag_documents():
+    docs_dir = _rag_documents_dir()
+    items = []
+    for entry in sorted(os.listdir(docs_dir)):
+        full = os.path.join(docs_dir, entry)
+        if os.path.isfile(full):
+            items.append({
+                "name": entry,
+                "size_kb": round(os.path.getsize(full) / 1024, 1),
+            })
+    return items
+
+
+@api_view(['GET'])
+def rag_documents_list(request):
+    """
+    Lista os arquivos da pasta documents/ usados pelo RAG.
+    """
+    return Response({"documents": _list_rag_documents()})
+
+
+@api_view(['POST'])
+def rag_documents_upload(request):
+    """
+    Recebe arquivos (multipart, campo 'files'), salva na pasta documents/
+    e reconstrói o índice RAG para que entrem em vigor imediatamente.
+    """
+    from .services.rag_service import RagService
+
+    files = request.FILES.getlist('files')
+    if not files:
+        return Response(
+            {"error": "Nenhum arquivo enviado. Use o campo 'files' (multipart)."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if len(files) > RAG_MAX_FILES_PER_REQUEST:
+        return Response(
+            {"error": f"Máximo de {RAG_MAX_FILES_PER_REQUEST} arquivos por envio."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    docs_dir = _rag_documents_dir()
+    saved, skipped = [], []
+    for f in files:
+        safe_name = _sanitize_doc_filename(getattr(f, 'name', ''))
+        ext = os.path.splitext(safe_name)[1].lower()
+        if not safe_name or ext not in RAG_ALLOWED_EXTENSIONS:
+            skipped.append({"name": getattr(f, 'name', '?'),
+                            "reason": f"Extensão não suportada. Use: {', '.join(sorted(RAG_ALLOWED_EXTENSIONS))}"})
+            continue
+        if f.size is not None and f.size > RAG_MAX_FILE_MB * 1024 * 1024:
+            skipped.append({"name": safe_name,
+                            "reason": f"Arquivo maior que {RAG_MAX_FILE_MB} MB."})
+            continue
+        try:
+            dest = os.path.join(docs_dir, safe_name)
+            with open(dest, 'wb+') as out:
+                for chunk in f.chunks():
+                    out.write(chunk)
+            saved.append(safe_name)
+        except Exception as e:
+            logger.error("Falha ao salvar documento RAG %s: %s", safe_name, e)
+            skipped.append({"name": safe_name, "reason": "Falha ao salvar no servidor."})
+
+    rebuilt = False
+    if saved:
+        try:
+            rebuilt = RagService().clear_and_rebuild_storage()
+        except Exception as e:
+            logger.error("Falha ao reconstruir índice RAG após upload: %s", e)
+
+    return Response({
+        "saved": saved,
+        "skipped": skipped,
+        "rebuilt": rebuilt,
+        "documents": _list_rag_documents(),
+    })
+
+
+@api_view(['DELETE'])
+def rag_documents_delete(request, filename):
+    """
+    Remove um arquivo da pasta documents/ e reconstrói o índice RAG.
+    """
+    from .services.rag_service import RagService
+
+    safe_name = _sanitize_doc_filename(filename)
+    docs_dir = _rag_documents_dir()
+    target = os.path.abspath(os.path.join(docs_dir, safe_name))
+    if not safe_name or not target.startswith(os.path.abspath(docs_dir) + os.sep):
+        return Response({"error": "Nome de arquivo inválido."},
+                        status=status.HTTP_400_BAD_REQUEST)
+    if not os.path.isfile(target):
+        return Response({"error": "Arquivo não encontrado."},
+                        status=status.HTTP_404_NOT_FOUND)
+    try:
+        os.unlink(target)
+    except Exception as e:
+        logger.error("Falha ao remover documento RAG %s: %s", safe_name, e)
+        return Response({"error": "Falha ao remover o arquivo."},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    rebuilt = False
+    try:
+        rebuilt = RagService().clear_and_rebuild_storage()
+    except Exception as e:
+        logger.error("Falha ao reconstruir índice RAG após remoção: %s", e)
+
+    return Response({"status": "deleted", "name": safe_name,
+                     "rebuilt": rebuilt, "documents": _list_rag_documents()})
+
 
 @api_view(['POST'])
 def unload_model(request):

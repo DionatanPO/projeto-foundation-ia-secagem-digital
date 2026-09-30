@@ -53,6 +53,7 @@ function toggleModal(show) {
         modal.classList.add('show');
         try { updateHistoryCountInfo(); } catch (e) {}
         try { if (window.initLiveSettingsTab) window.initLiveSettingsTab(); } catch (e) {}
+        try { if (window.loadRagDocuments) window.loadRagDocuments(); } catch (e) {}
     } else {
         modal.classList.remove('show');
     }
@@ -1111,6 +1112,129 @@ window.clearRagStorage = async function() {
         btnText.innerText = originalText;
         btn.disabled = false;
         btn.style.opacity = '';
+    }
+};
+
+// ── Documentos da base de conhecimento (RAG) ──
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
+window.loadRagDocuments = async function() {
+    const list = document.getElementById('ragDocList');
+    if (!list) return;
+    try {
+        const response = await fetch('/api/rag-documents/');
+        if (!response.ok) {
+            console.warn(`Lista RAG indisponível (HTTP ${response.status}). Reinicie o servidor Django.`);
+            return;
+        }
+        const data = await response.json();
+        const docs = data.documents || [];
+        list.innerHTML = '';
+        if (docs.length === 0) {
+            list.innerHTML = '<div style="font-size: 12px; color: var(--text-dim); padding: 10px;">Nenhum documento na pasta documents/</div>';
+            return;
+        }
+        docs.forEach(doc => {
+            const item = document.createElement('div');
+            item.className = 'model-item';
+            item.style.cursor = 'default';
+            item.innerHTML = `
+                <div class="model-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <polyline points="14 2 14 8 20 8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                    </svg>
+                </div>
+                <div class="model-info">
+                    <span class="model-name" title="${escapeHtml(doc.name)}">${escapeHtml(doc.name)}</span>
+                    <span class="model-status">${escapeHtml(String(doc.size_kb))} KB</span>
+                </div>
+            `;
+            const delBtn = document.createElement('button');
+            delBtn.title = 'Remover documento';
+            delBtn.setAttribute('style', 'margin-left: auto; background: none; border: none; cursor: pointer; color: #db4455; padding: 4px; display: flex;');
+            delBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                    <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            `;
+            delBtn.addEventListener('click', () => window.deleteRagDocument(doc.name));
+            item.appendChild(delBtn);
+            list.appendChild(item);
+        });
+    } catch (err) {
+        console.error("Erro ao listar documentos RAG:", err);
+    }
+};
+
+function ragUploadFeedback(msg, ok) {
+    const fb = document.getElementById('ragUploadFeedback');
+    if (!fb) return;
+    fb.style.display = 'block';
+    fb.style.color = ok ? 'var(--primary)' : '#db4455';
+    fb.innerText = msg;
+    if (ok) setTimeout(() => { fb.style.display = 'none'; }, 4000);
+}
+
+window.uploadRagDocuments = async function(input) {
+    if (!input.files || input.files.length === 0) return;
+    const btn = document.getElementById('ragUploadBtn');
+    const btnText = btn ? btn.querySelector('span') : null;
+    const originalText = btnText ? btnText.innerText : '';
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; }
+    if (btnText) btnText.innerText = 'Enviando e reindexando...';
+    ragUploadFeedback('Enviando documentos e reconstruindo o índice...', true);
+
+    try {
+        const formData = new FormData();
+        for (const f of input.files) formData.append('files', f);
+        const response = await fetch('/api/rag-documents/upload/', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            ragUploadFeedback(data.error || 'Falha no envio.', false);
+        } else {
+            const parts = [];
+            if (data.saved && data.saved.length) parts.push(`${data.saved.length} salvo(s)`);
+            if (data.skipped && data.skipped.length) parts.push(`${data.skipped.length} ignorado(s): ${data.skipped.map(s => s.name).join(', ')}`);
+            ragUploadFeedback(
+                `Pronto: ${parts.join(' — ') || 'nada enviado'}.${data.rebuilt ? ' Índice reconstruído.' : ' Índice NÃO foi reconstruído.'}`,
+                (data.skipped || []).length === 0 && data.rebuilt
+            );
+            window.loadRagDocuments();
+        }
+    } catch (err) {
+        console.error("Erro ao enviar documentos RAG:", err);
+        ragUploadFeedback('Erro ao conectar ao servidor.', false);
+    } finally {
+        input.value = '';
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+        if (btnText) btnText.innerText = originalText;
+    }
+};
+
+window.deleteRagDocument = async function(name) {
+    try {
+        const response = await fetch('/api/rag-documents/' + encodeURIComponent(name) + '/', {
+            method: 'DELETE'
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            ragUploadFeedback(data.error || 'Falha ao remover.', false);
+        } else {
+            ragUploadFeedback(`"${name}" removido.${data.rebuilt ? ' Índice reconstruído.' : ''}`, true);
+            window.loadRagDocuments();
+        }
+    } catch (err) {
+        console.error("Erro ao remover documento RAG:", err);
+        ragUploadFeedback('Erro ao conectar ao servidor.', false);
     }
 };
 

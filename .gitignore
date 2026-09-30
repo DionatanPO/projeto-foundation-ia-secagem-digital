@@ -13,6 +13,8 @@ static_cdn/
 # IA Models (Arquivos grandes que não devem ir para o Git comum)
 models/
 storage/
+# Documentos do RAG (enviados pelo usuário via Configurações)
+documents/
 
 # IDEs
 .vscode/

@@ -276,6 +276,40 @@
                                     </svg>
                                     <span>Limpar & Recarregar RAG</span>
                                 </button>
+                                <span style="font-size:11px; color:var(--text-dim); margin-top:4px; display:block;">
+                                    Apaga o índice atual e reconstrói a base a partir dos arquivos da pasta documents/.
+                                    Use após adicionar ou remover arquivos manualmente nessa pasta.
+                                </span>
+                            </div>
+
+                            <!-- Documentos da Base de Conhecimento -->
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <span class="nav-section-label" style="padding: 0; margin: 0;">Documentos da base (RAG)</span>
+                                </div>
+                                <div id="ragDocList" class="model-list" style="margin-top: 8px;">
+                                    <!-- Gerado via JS -->
+                                </div>
+                                <input type="file" id="ragFileInput" multiple accept=".pdf,.docx,.doc,.txt,.md,.csv"
+                                    style="display: none;" onchange="uploadRagDocuments(this)">
+                                <button class="sys-input" id="ragUploadBtn"
+                                    onclick="document.getElementById('ragFileInput').click()"
+                                    style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; cursor: pointer; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); width: 100%; font-family: var(--font); font-weight: 500; transition: var(--transition); margin-top: 8px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"
+                                        height="16" style="flex-shrink:0;">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                        <polyline points="17 8 12 3 7 8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <line x1="12" y1="3" x2="12" y2="15" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                    </svg>
+                                    <span>Selecionar documentos</span>
+                                </button>
+                                <div id="ragUploadFeedback"
+                                    style="margin-top: 8px; font-size: 12px; text-align: center; display: none;"></div>
+                                <span style="font-size:11px; color:var(--text-dim); margin-top:4px; display:block;">
+                                    Os arquivos são salvos na pasta documents/ e o índice é reconstruído automaticamente.
+                                </span>
                             </div>
 
                             <!-- Temperatura -->
@@ -578,7 +612,7 @@
         </div>
     </div>
 
-    <script src="{% static 'model_ui/js/script.js' %}?v=13"></script>
+    <script src="{% static 'model_ui/js/script.js' %}?v=17"></script>
     <script src="{% static 'model_ui/js/live.js' %}?v=24"></script>
 </body>
 
