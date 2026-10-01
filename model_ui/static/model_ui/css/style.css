@@ -1439,17 +1439,6 @@ kbd {
     width: 100%;
 }
 
-.welcome-cover {
-    width: 100%;
-    max-width: 560px;
-    height: auto;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
-    margin-bottom: 28px;
-    animation: fade-in-up-smooth 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
 .welcome-title {
     font-size: clamp(34px, 5.5vw, 50px);
     font-weight: 400;

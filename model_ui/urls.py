@@ -1,7 +1,9 @@
 from django.urls import path
-from .views import chat_interface, login_view
+from .views import chat_interface, landing_view, login_view
 
 urlpatterns = [
-    path('', chat_interface, name='chat-interface'),
+    path('', landing_view, name='inicio'),
+    path('solumai/', landing_view, name='solumai-landing'),
+    path('chat/', chat_interface, name='chat-interface'),
     path('login/', login_view, name='login'),
 ]

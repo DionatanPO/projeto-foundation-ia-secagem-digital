@@ -126,7 +126,7 @@ N_GPU_LAYERS = int(os.getenv('N_GPU_LAYERS', '0'))
 HF_TOKEN = os.getenv('HF_TOKEN', None)
 
 # Modo Live (Vozes neurais Edge-TTS e Piper local)
-LIVE_VOICE = os.getenv('LIVE_VOICE', 'pt-BR-FabioNeural')
+LIVE_VOICE = os.getenv('LIVE_VOICE', 'pt-BR-ThalitaMultilingualNeural')
 PIPER_VOICE = os.getenv('PIPER_VOICE', 'pt_BR-faber-medium')
 PIPER_NOISE_SCALE = os.getenv('PIPER_NOISE_SCALE', '0.8')
 PIPER_NOISE_W = os.getenv('PIPER_NOISE_W', '0.8')

@@ -850,10 +850,10 @@ function extractMetrics(text) {
     return '';
 }
 
-// ── Avatar oficial AgroMind nas respostas do modelo ──
+// ── Avatar oficial SolumAI nas respostas do modelo ──
 function botAvatarHTML() {
-    const src = window.AGROMIND_ICON_URL || '/static/model_ui/img/agromind.png';
-    return `<div class="avatar bot"><img src="${src}" alt="AgroMind"></div>`;
+    const src = window.SOLUMAI_ICON_URL || '/static/model_ui/img/solumai.png';
+    return `<div class="avatar bot"><img src="${src}" alt="SolumAI"></div>`;
 }
 
 function createMsg(text, isUser, imgBase64) {
@@ -874,7 +874,7 @@ function createMsg(text, isUser, imgBase64) {
         ${botAvatarHTML()}
         <div class="msg-body">
             <div class="msg-meta">
-                <span class="msg-name">AgroMind</span>
+                <span class="msg-name">SolumAI</span>
                 ${time}
                 <button class="copy-btn" onclick="copyMsg(this)" title="Copiar resposta">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -932,7 +932,7 @@ function showLoader() {
     wrap.innerHTML = `
     ${botAvatarHTML()}
     <div class="msg-body">
-        <div class="msg-meta"><span class="msg-name">AgroMind</span></div>
+        <div class="msg-meta"><span class="msg-name">SolumAI</span></div>
         <div class="msg-bubble">
             <div class="loader-wrap"><span></span><span></span><span></span></div>
         </div>

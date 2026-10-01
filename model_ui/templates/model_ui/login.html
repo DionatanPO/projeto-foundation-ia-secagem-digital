@@ -1,299 +1,716 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login — AgroMind AI</title>
-    {# ── Assets do projeto: logo oficial AgroMind ── #}
+    <title>Login — SolumAI</title>
+
+    <link rel="icon" type="image/svg+xml" href="{% static 'model_ui/img/favicon.svg' %}">
     <link rel="icon" href="{% static 'model_ui/img/favicon.ico' %}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'model_ui/img/favicon-32x32.png' %}">
     <link rel="apple-touch-icon" href="{% static 'model_ui/img/apple-touch-icon.png' %}">
-    <meta name="theme-color" content="#16a34a">
+    <meta name="theme-color" content="#071d13">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
     <style>
         :root {
-            --font: 'Outfit', sans-serif;
-            --mono: 'JetBrains Mono', monospace;
+            --bg: #04150e;
+            --panel: #081f15;
+            --panel-2: #0d2a1c;
+            --border: rgba(255, 255, 255, .09);
+            --text: #f5faf7;
+            --muted: #9fb3a8;
+            --green: #4bea79;
+            --green-2: #8cff9e;
+            --green-dark: #09291a;
+            --danger: #ff7771;
         }
-        [data-theme="dark"] {
-            --bg: #131314;
-            --surface: #1e1f20;
-            --surface-2: #282a2c;
-            --border: rgba(255,255,255,0.08);
-            --text: #e3e3e3;
-            --text-dim: #8e918f;
-            --text-muted: #c4c7c5;
-            --accent: #a8dab5;
-            --accent-glow: rgba(168,218,181,0.25);
-            --accent-bg: rgba(168,218,181,0.12);
-            --error: #ef5350;
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        [data-theme="light"] {
-            --bg: #f9f9fb;
-            --surface: #ffffff;
-            --surface-2: #f0f2f5;
-            --border: rgba(0,0,0,0.06);
-            --text: #1f1f1f;
-            --text-dim: #757575;
-            --text-muted: #474747;
-            --accent: #1e4620;
-            --accent-glow: rgba(30,70,32,0.15);
-            --accent-bg: rgba(30,70,32,0.08);
-            --error: #d32f2f;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html,
         body {
+            min-height: 100%;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
             background: var(--bg);
             color: var(--text);
-            font-family: var(--font);
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .page {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(430px, .85fr);
+            position: relative;
+            isolation: isolate;
+        }
+
+        /* ===== PAINEL VISUAL ===== */
+
+        .visual {
+            position: relative;
+            min-height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            padding: 54px 7vw 58px;
+            /* Painel sobre foto escura: texto sempre claro, nos dois temas */
+            color: #f5faf7;
+            background: linear-gradient(90deg, rgba(2, 18, 12, .96) 0%, rgba(2, 18, 12, .72) 48%, rgba(2, 18, 12, .18) 100%),
+            linear-gradient(0deg, rgba(1, 12, 7, .92) 0%, transparent 58%),
+            url("{% static 'model_ui/img/fundo-inicio.jpg' %}") center/cover no-repeat;
+        }
+
+        .visual::before {
+            content: "";
+            position: absolute;
+            width: 520px;
+            height: 520px;
+            right: 7%;
+            top: 16%;
+            border-radius: 50%;
+            background: rgba(71, 239, 116, .12);
+            filter: blur(90px);
+            pointer-events: none;
+        }
+
+        .visual::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(120deg, transparent 35%, rgba(77, 239, 119, .08) 36%, transparent 37%),
+                linear-gradient(155deg, transparent 57%, rgba(77, 239, 119, .06) 58%, transparent 59%);
+            pointer-events: none;
+        }
+
+        .visual-content {
+            position: relative;
+            z-index: 2;
+            max-width: 650px;
+        }
+
+        .brand {
+            position: absolute;
+            z-index: 4;
+            top: 38px;
+            left: 7vw;
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -.7px;
+        }
+
+        .brand img {
+            width: 42px;
+            height: 42px;
+            object-fit: cover;
+            border-radius: 12px;
+        }
+
+        .brand strong {
+            color: var(--green);
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            padding: 8px 13px;
+            border: 1px solid rgba(89, 239, 123, .22);
+            border-radius: 999px;
+            background: rgba(7, 37, 23, .55);
+            backdrop-filter: blur(10px);
+            color: #bdeac8;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .eyebrow-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 14px var(--green);
+        }
+
+        .visual h2 {
+            max-width: 650px;
+            font-size: clamp(44px, 5vw, 78px);
+            line-height: .98;
+            letter-spacing: -3.5px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .visual h2 span {
+            color: var(--green);
+        }
+
+        .visual p {
+            max-width: 550px;
+            color: #c3d1ca;
+            font-size: 17px;
+            line-height: 1.6;
+        }
+
+        .benefits {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+
+        .benefit {
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: rgba(5, 31, 19, .66);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: #d9e7df;
+            font-size: 13px;
+            backdrop-filter: blur(12px);
+        }
+
+        .benefit b {
+            color: var(--green);
+            margin-right: 5px;
+        }
+
+        /* ===== LOGIN ===== */
+
+        .login-area {
+            position: relative;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            overflow: hidden;
-            -webkit-font-smoothing: antialiased;
-            transition: background .3s, color .3s;
+            padding: 48px;
+            background:
+                radial-gradient(circle at 10% 10%, rgba(66, 232, 113, .07), transparent 35%),
+                var(--panel);
+            border-left: 1px solid var(--border);
         }
-        .login-bg-glow {
-            position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+
+        .login-area::before {
+            content: "";
+            position: absolute;
+            width: 260px;
+            height: 260px;
+            right: -120px;
+            bottom: -120px;
+            border-radius: 50%;
+            background: rgba(69, 235, 116, .10);
+            filter: blur(70px);
         }
-        .glow {
-            position: absolute; border-radius: 50%; mix-blend-mode: plus-lighter;
-            transition: opacity .5s;
+
+        .login-box {
+            width: min(100%, 430px);
+            position: relative;
+            z-index: 2;
+            animation: enter .7s cubic-bezier(.16, 1, .3, 1);
         }
-        [data-theme="dark"] .glow { opacity: .1; filter: blur(80px); }
-        [data-theme="light"] .glow { opacity: .06; filter: blur(100px); }
-        .glow-1 { width: 400px; height: 400px; background: var(--accent); top: -100px; left: -120px; animation: float1 18s infinite ease-in-out; }
-        .glow-2 { width: 500px; height: 500px; background: var(--accent); bottom: -150px; right: -180px; animation: float2 24s infinite ease-in-out; }
-        .glow-3 { width: 300px; height: 300px; background: var(--accent); top: 40%; left: 50%; animation: float3 20s infinite ease-in-out; }
-        @keyframes float1 {
-            0%,100% { transform: translate(0,0) scale(1); }
-            33% { transform: translate(80px,60px) scale(1.2); }
-            66% { transform: translate(-50px,90px) scale(.85); }
+
+        @keyframes enter {
+            from {
+                opacity: 0;
+                transform: translateY(18px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        @keyframes float2 {
-            0%,100% { transform: translate(0,0) scale(1); }
-            50% { transform: translate(-100px,-70px) scale(.85); }
-            80% { transform: translate(70px,50px) scale(1.15); }
-        }
-        @keyframes float3 {
-            0%,100% { transform: translate(0,0) scale(1); }
-            40% { transform: translate(-60px,100px) scale(1.2); }
-            70% { transform: translate(90px,-40px) scale(.8); }
-        }
-        .login-card {
-            position: relative; z-index: 1;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 28px;
-            padding: 48px 40px 40px;
-            width: 100%; max-width: 420px;
-            box-shadow: 0 12px 48px rgba(0,0,0,.18);
-            animation: fadeUp .7s cubic-bezier(.16,1,.3,1) both;
-        }
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(24px) scale(.97); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .login-brand {
-            display: flex; align-items: center; gap: 12px;
+
+        .login-heading {
             margin-bottom: 32px;
         }
-        .login-cover {
-            margin: -48px -40px 28px;
-            border-radius: 28px 28px 0 0;
-            overflow: hidden;
-            border-bottom: 1px solid var(--border);
+
+        .login-heading .mini-logo {
+            display: none;
         }
-        .login-cover img {
-            display: block; width: 100%; height: auto;
+
+        .login-heading h1 {
+            font-size: 34px;
+            letter-spacing: -1.4px;
+            line-height: 1.1;
+            margin-bottom: 9px;
         }
-        .brand-mark {
-            width: 40px; height: 40px;
-            background: var(--accent-bg);
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            border: 1px solid var(--border);
-            flex-shrink: 0;
+
+        .login-heading p {
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.55;
         }
-        .brand-mark svg { width: 22px; height: 22px; color: var(--accent); }
-        .brand-mark img { width: 40px; height: 40px; border-radius: 12px; object-fit: contain; }
-        .brand-text { display: flex; flex-direction: column; }
-        .brand-name { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
-        .brand-sub { font-size: 11px; font-weight: 500; color: var(--text-dim); letter-spacing: .05em; text-transform: uppercase; }
-        .login-title {
-            font-size: 24px; font-weight: 500; letter-spacing: -.02em;
-            margin-bottom: 6px;
+
+        .form {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
         }
-        .login-sub {
-            font-size: 14px; color: var(--text-dim); line-height: 1.5;
-            margin-bottom: 28px;
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
-        .login-form { display: flex; flex-direction: column; gap: 20px; }
-        .input-group { display: flex; flex-direction: column; gap: 6px; }
-        .input-group label {
-            font-size: 11px; font-weight: 600; letter-spacing: .06em;
-            text-transform: uppercase; color: var(--text-dim);
+
+        .field label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #c5d3cc;
         }
-        .input-wrapper {
-            display: flex; align-items: center;
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: 14px;
+
+        .input {
+            height: 58px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
             padding: 0 16px;
-            transition: border-color .2s, background .2s;
+            border: 1px solid rgba(255, 255, 255, .10);
+            border-radius: 15px;
+            background: var(--panel-2);
+            transition: .2s ease;
         }
-        .input-wrapper:focus-within {
-            border-color: var(--accent);
-            background: var(--surface);
+
+        .input:focus-within {
+            border-color: rgba(75, 235, 121, .7);
+            box-shadow: 0 0 0 4px rgba(75, 235, 121, .08);
+            background: #103522;
         }
-        .input-wrapper svg {
-            width: 20px; height: 20px; color: var(--text-dim); flex-shrink: 0;
-            transition: color .2s;
+
+        .input svg {
+            width: 20px;
+            height: 20px;
+            color: #71877b;
+            flex: 0 0 auto;
         }
-        .input-wrapper:focus-within svg { color: var(--accent); }
-        .input-wrapper input {
-            flex: 1; background: transparent; border: none; outline: none;
-            padding: 16px 12px; color: var(--text);
-            font-family: var(--font); font-size: 15px;
+
+        .input:focus-within svg {
+            color: var(--green);
         }
-        .input-wrapper input::placeholder { color: var(--text-dim); }
+
+        .input input {
+            min-width: 0;
+            flex: 1;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: var(--text);
+            font: inherit;
+            font-size: 15px;
+        }
+
+        .input input::placeholder {
+            color: #718278;
+        }
+
+        .toggle-password {
+            border: 0;
+            background: transparent;
+            color: #718278;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            padding: 4px;
+        }
+
+        .toggle-password:hover {
+            color: var(--green);
+        }
+
         .login-btn {
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            padding: 16px; border: none; border-radius: 14px;
-            background: var(--accent); color: #fff;
-            font-family: var(--font); font-size: 15px; font-weight: 600;
-            cursor: pointer; transition: all .2s;
+            height: 58px;
+            margin-top: 5px;
+            border: 0;
+            border-radius: 15px;
+            cursor: pointer;
+            color: #062214;
+            background: linear-gradient(135deg, var(--green-2), var(--green));
+            font: inherit;
+            font-size: 15px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 12px 35px rgba(65, 232, 111, .16);
+            transition: .25s ease;
         }
-        [data-theme="dark"] .login-btn { color: #072711; }
+
         .login-btn:hover {
-            filter: brightness(1.1);
-            box-shadow: 0 4px 20px var(--accent-glow);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: 0 17px 40px rgba(65, 232, 111, .26);
         }
-        .login-btn:active { transform: translateY(0); }
-        .login-btn svg { width: 18px; height: 18px; }
-        .login-error {
-            display: flex; align-items: center; gap: 8px;
-            padding: 12px 16px;
-            background: rgba(239,83,80,.08);
-            border: 1px solid rgba(239,83,80,.2);
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn svg {
+            width: 19px;
+            height: 19px;
+        }
+
+        .error {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 12px 14px;
             border-radius: 12px;
-            color: var(--error); font-size: 13px; font-weight: 500;
-            animation: shake .35s ease;
+            color: #ffaaa6;
+            background: rgba(255, 80, 72, .08);
+            border: 1px solid rgba(255, 80, 72, .18);
+            font-size: 13px;
         }
-        @keyframes shake {
-            0%,100% { transform: translateX(0); }
-            20% { transform: translateX(-6px); }
-            40% { transform: translateX(6px); }
-            60% { transform: translateX(-4px); }
-            80% { transform: translateX(4px); }
+
+        .error svg {
+            width: 17px;
+            flex: 0 0 auto;
         }
-        .login-footer {
-            margin-top: 24px; text-align: center;
-            font-size: 12px; color: var(--text-dim); line-height: 1.6;
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 25px 0 0;
+            color: #63766d;
+            font-size: 11px;
         }
-        .login-footer strong { color: var(--text-muted); }
+
+        .divider::before,
+        .divider::after {
+            content: "";
+            height: 1px;
+            flex: 1;
+            background: rgba(255, 255, 255, .08);
+        }
+
+        .security {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 17px;
+            color: #788c82;
+            font-size: 12px;
+        }
+
+        .security svg {
+            width: 15px;
+            color: var(--green);
+        }
+
+        .footer {
+            margin-top: 38px;
+            color: #667970;
+            text-align: center;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .footer strong {
+            color: #9eb0a7;
+        }
+
         .theme-toggle {
-            position: fixed; top: 20px; right: 20px; z-index: 2;
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: 50%; width: 40px; height: 40px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; color: var(--text-dim); transition: all .2s;
+            position: fixed;
+            top: 22px;
+            right: 22px;
+            z-index: 20;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(7, 30, 20, .75);
+            backdrop-filter: blur(12px);
+            color: #a8b8b0;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
         }
-        .theme-toggle:hover { color: var(--text); border-color: var(--border); }
-        .theme-toggle svg { width: 20px; height: 20px; }
-        @media (max-width: 480px) {
-            .login-card { padding: 32px 24px 28px; border-radius: 20px; margin: 16px; max-width: 100%; }
-            .login-cover { margin: -32px -24px 24px; border-radius: 20px 20px 0 0; }
-            .login-title { font-size: 20px; }
+
+        .theme-toggle:hover {
+            color: var(--green);
+        }
+
+        .theme-toggle svg {
+            width: 19px;
+        }
+
+        /* ===== RESPONSIVO ===== */
+
+        @media (max-width: 1050px) {
+            .page {
+                grid-template-columns: 1fr;
+            }
+
+            .visual {
+                min-height: 42vh;
+                padding: 150px 8vw 48px;
+            }
+
+            .brand {
+                left: 8vw;
+            }
+
+            .visual h2 {
+                font-size: clamp(42px, 8vw, 68px);
+            }
+
+            .login-area {
+                min-height: 58vh;
+                border-left: 0;
+                border-top: 1px solid var(--border);
+                padding: 60px 8vw;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .theme-toggle {
+                top: 14px;
+                right: 14px;
+            }
+
+            .brand {
+                top: 22px;
+                left: 22px;
+            }
+
+            .visual {
+                min-height: 52vh;
+                padding: 120px 24px 38px;
+            }
+
+            .visual h2 {
+                font-size: 43px;
+                letter-spacing: -2px;
+            }
+
+            .visual p {
+                font-size: 15px;
+            }
+
+            .login-area {
+                min-height: 48vh;
+                padding: 46px 24px;
+            }
+
+            .login-heading h1 {
+                font-size: 28px;
+            }
+
+            .login-box {
+                width: 100%;
+            }
         }
     </style>
 </head>
+
 <body>
-    <div class="login-bg-glow">
-        <div class="glow glow-1"></div>
-        <div class="glow glow-2"></div>
-        <div class="glow glow-3"></div>
-    </div>
 
-    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" aria-label="Alternar tema">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-    </button>
+    <div class="page">
 
-    <div class="login-card">
-        <div class="login-cover">
-            <img src="{% static 'model_ui/img/capa.png' %}" alt="AgroMind AI — Secagem Digital">
-        </div>
-        <div class="login-brand">
-            <div class="brand-mark">
-                <img src="{% static 'model_ui/img/agromind.png' %}" alt="AgroMind AI" width="40" height="40" style="border-radius:10px">
+        <!-- PAINEL DE MARCA -->
+        <section class="visual">
+
+            <div class="brand">
+                <img src="{% static 'model_ui/img/solumai.png' %}" alt="SolumAI">
+                <span>Solum<strong>AI</strong></span>
             </div>
-            <div class="brand-text">
-                <span class="brand-name">AgroMind</span>
-                <span class="brand-sub">AI Assistant</span>
-            </div>
-        </div>
 
-        <h1 class="login-title">Acesso ao Sistema</h1>
-        <p class="login-sub">Insira a chave de licença para desbloquear o assistente de IA.</p>
+            <div class="visual-content">
 
-        {% if error %}
-        <div class="login-error" role="alert">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            {{ error }}
-        </div>
-        {% endif %}
-
-        <form class="login-form" method="post">
-            {% csrf_token %}
-            <div class="input-group">
-                <label for="app_key">Chave de Acesso</label>
-                <div class="input-wrapper">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
-                    <input type="password" id="app_key" name="app_key"
-                           placeholder="Digite sua chave…" autofocus required>
+                <div class="eyebrow">
+                    <span class="eyebrow-dot"></span>
+                    Inteligência para o agro
                 </div>
-            </div>
-            <button type="submit" class="login-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6"/>
-                </svg>
-                Desbloquear
-            </button>
-        </form>
 
-        <div class="login-footer">
-            <strong>AgroMind AI</strong> &mdash; Assistente local com visão e raciocínio profundo.<br>
-            Seus dados permanecem 100% na sua máquina.
-        </div>
+                <h2>
+                    Inteligência que
+                    <span>cultiva</span>
+                    um futuro melhor.
+                </h2>
+
+                <p>
+                    Dados, tecnologia e inteligência artificial trabalhando
+                    juntos para transformar decisões no campo em resultados
+                    mais produtivos, sustentáveis e rentáveis.
+                </p>
+
+                <div class="benefits">
+                    <div class="benefit"><b>01</b> Mais produtividade</div>
+                    <div class="benefit"><b>02</b> Dados em tempo real</div>
+                    <div class="benefit"><b>03</b> Decisões inteligentes</div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- LOGIN -->
+        <section class="login-area">
+
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Alternar tema">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+            </button>
+
+            <div class="login-box">
+
+                <div class="login-heading">
+                    <h1>Bem-vindo à SolumAI</h1>
+                    <p>
+                        Acesse seu ambiente de inteligência e continue
+                        de onde você parou.
+                    </p>
+                </div>
+
+                {% if error %}
+                <div class="error" role="alert">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{{ error }}</span>
+                </div>
+                {% endif %}
+
+                <form class="form" method="post">
+                    {% csrf_token %}
+
+                    <div class="field">
+                        <label for="app_key">Chave de acesso</label>
+
+                        <div class="input">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+
+                            <input type="password" id="app_key" name="app_key" placeholder="Digite sua chave..."
+                                autocomplete="current-password" autofocus required>
+
+                            <button type="button" class="toggle-password" onclick="togglePassword()"
+                                aria-label="Mostrar senha">
+                                <svg id="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="login-btn">
+                        Entrar no sistema
+
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h13" />
+                            <path d="m13 6 6 6-6 6" />
+                        </svg>
+                    </button>
+                </form>
+
+                <div class="divider">
+                    acesso protegido
+                </div>
+
+                <div class="security">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="10" rx="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Ambiente protegido e exclusivo
+                </div>
+
+                <div class="footer">
+                    <strong>SolumAI</strong> — Assistente de inteligência artificial.<br>
+                    Seus dados permanecem na sua máquina.
+                </div>
+
+            </div>
+        </section>
+
     </div>
 
     <script>
-        (function() {
-            var theme = localStorage.getItem('login-theme');
-            if (!theme) {
-                theme = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+        function togglePassword() {
+            const input = document.getElementById('app_key');
+            const eye = document.getElementById('eye');
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                eye.innerHTML = `
+                <path d="M3 3l18 18"/>
+                <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/>
+                <path d="M9.9 4.2A10.9 10.9 0 0 1 12 4c6.5 0 10 8 10 8a18 18 0 0 1-3.1 4.4"/>
+                <path d="M6.6 6.6C3.6 8.6 2 12 2 12s3.5 8 10 8a10.5 10.5 0 0 0 4-.8"/>
+            `;
+            } else {
+                input.type = 'password';
+                eye.innerHTML = `
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+            `;
             }
-            document.documentElement.setAttribute('data-theme', theme);
-        })();
-        function toggleTheme() {
-            var html = document.documentElement;
-            var cur = html.getAttribute('data-theme');
-            var next = cur === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', next);
-            localStorage.setItem('login-theme', next);
         }
+
+        function toggleTheme() {
+            const body = document.body;
+            const current = body.dataset.theme || 'dark';
+            body.dataset.theme = current === 'dark' ? 'light' : 'dark';
+
+            if (current === 'dark') {
+                document.documentElement.style.setProperty('--bg', '#f4f8f5');
+                document.documentElement.style.setProperty('--panel', '#ffffff');
+                document.documentElement.style.setProperty('--panel-2', '#f1f5f2');
+                document.documentElement.style.setProperty('--text', '#102219');
+                document.documentElement.style.setProperty('--muted', '#66766e');
+            } else {
+                document.documentElement.style.setProperty('--bg', '#04150e');
+                document.documentElement.style.setProperty('--panel', '#081f15');
+                document.documentElement.style.setProperty('--panel-2', '#0d2a1c');
+                document.documentElement.style.setProperty('--text', '#f5faf7');
+                document.documentElement.style.setProperty('--muted', '#9fb3a8');
+            }
+
+            localStorage.setItem('solumai-login-theme', body.dataset.theme);
+        }
+
+        (function () {
+            const saved = localStorage.getItem('solumai-login-theme');
+            if (saved === 'light') {
+                document.querySelector('.theme-toggle').click();
+            }
+        })();
     </script>
+
 </body>
+
 </html>

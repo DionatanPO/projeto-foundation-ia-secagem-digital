@@ -28,3 +28,7 @@ def chat_interface(request):
         return redirect('login')
     show_welcome = bool(request.session.pop('just_logged_in', False))
     return render(request, 'model_ui/index.html', {'show_welcome': show_welcome})
+
+
+def landing_view(request):
+    return render(request, 'model_ui/landing.html')

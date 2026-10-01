@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroMind AI</title>
+    <title>SolumAI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -17,7 +17,8 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <link rel="stylesheet" href="{% static 'model_ui/css/style.css' %}?v=13">
-    {# ── Assets do projeto: logo oficial AgroMind ── #}
+    {# ── Assets do projeto: logo oficial SolumAI ── #}
+    <link rel="icon" type="image/svg+xml" href="{% static 'model_ui/img/favicon.svg' %}">
     <link rel="icon" href="{% static 'model_ui/img/favicon.ico' %}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'model_ui/img/favicon-32x32.png' %}">
     <link rel="icon" type="image/png" sizes="16x16" href="{% static 'model_ui/img/favicon-16x16.png' %}">
@@ -25,7 +26,7 @@
     <link rel="manifest" href="{% static 'model_ui/img/site.webmanifest' %}">
     <meta name="theme-color" content="#16a34a">
     <meta property="og:image" content="{% static 'model_ui/img/capa.png' %}">
-    <meta property="og:title" content="AgroMind AI">
+    <meta property="og:title" content="SolumAI">
     <meta property="og:description" content="Assistente técnico inteligente para secagem digital, silos e grãos.">
 </head>
 
@@ -44,9 +45,9 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand">
-                <img src="{% static 'model_ui/img/agromind.png' %}" alt="AgroMind AI" width="36" height="36" style="border-radius:9px">
+                <img src="{% static 'model_ui/img/solumai.png' %}" alt="SolumAI" width="36" height="36" style="border-radius:9px">
                 <div class="brand-text">
-                    <span class="brand-name">AgroMind</span>
+                    <span class="brand-name">SolumAI</span>
                 </div>
             </div>
         </div>
@@ -97,7 +98,6 @@
             </div>
             
             <div class="welcome-inner">
-                <img class="welcome-cover" src="{% static 'model_ui/img/capa.png' %}" alt="AgroMind AI — Secagem Digital">
                 <h1 class="welcome-title">Como posso ajudar <em>hoje?</em></h1>
                 <p class="welcome-sub">Assistente inteligente com visão e raciocínio profundo.<br>Pronto para ajudar com
                     secagem, qualidade e gestão de grãos.</p>
@@ -174,13 +174,33 @@
         .welcome-backdrop.show { display: flex; opacity: 1; }
         .welcome-card {
             background: var(--surface); color: var(--text);
-            width: 100%; max-width: 960px; border-radius: 24px;
+            width: 100%; max-width: 1020px; border-radius: 24px;
             border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,.35);
             padding: 0; text-align: left; position: relative;
             transform: scale(.95) translateY(10px); transition: transform .25s cubic-bezier(.16,1,.3,1);
             max-height: 90vh; overflow-y: auto; overflow-x: hidden;
         }
         .welcome-backdrop.show .welcome-card { transform: scale(1) translateY(0); }
+        .welcome-layout { display: grid; grid-template-columns: 400px 1fr; align-items: stretch; }
+        .welcome-media {
+            position: relative; background: #000;
+            border-radius: 24px 0 0 24px; overflow: hidden;
+            min-height: 100%; display: flex;
+        }
+        .welcome-media video {
+            width: 100%; height: 100%; min-height: 420px;
+            object-fit: cover; display: block; background: #000;
+        }
+        .welcome-media-badge {
+            position: absolute; left: 14px; bottom: 14px;
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(0,0,0,.6); color: #fff;
+            font-size: 12px; font-weight: 500;
+            padding: 8px 12px; border-radius: 999px;
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            pointer-events: none;
+        }
+        .welcome-media-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e; }
         .welcome-card-body { padding: 28px 32px 24px; }
         .welcome-kicker {
             font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
@@ -216,18 +236,31 @@
         .welcome-close-x:hover { color: var(--text); }
         .welcome-hide { display: block; margin: 12px auto 0; font-size: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-family: var(--font); }
         .welcome-hide:hover { color: var(--text); text-decoration: underline; }
-        @media (max-width: 760px) {
+        @media (max-width: 860px) {
             .welcome-card { max-width: 540px; }
+            .welcome-layout { grid-template-columns: 1fr; }
+            .welcome-media { border-radius: 24px 24px 0 0; }
+            .welcome-media video { min-height: 0; height: 230px; }
             .welcome-feats { grid-template-columns: 1fr; }
             .welcome-card-body { padding: 26px 20px 20px; }
+        }
+        @media (max-width: 760px) {
+            .welcome-feats { grid-template-columns: 1fr; }
         }
         @media (max-width: 480px) { .welcome-card h2 { font-size: 20px; } }
     </style>
     <div class="welcome-backdrop" id="welcomeModal" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
         <div class="welcome-card">
             <button class="welcome-close-x" onclick="closeWelcome()" aria-label="Fechar">✕</button>
+            <div class="welcome-layout">
+            <div class="welcome-media">
+                <video id="welcomeVideo" src="{% static 'model_ui/video/introducao.mp4' %}"
+                    poster="{% static 'model_ui/img/capa.png' %}"
+                    autoplay muted loop playsinline controls preload="auto"></video>
+                <span class="welcome-media-badge"><span class="dot"></span> SolumAI em ação</span>
+            </div>
             <div class="welcome-card-body">
-            <div class="welcome-kicker">Bem-vindo ao AgroMind AI</div>
+            <div class="welcome-kicker">Bem-vindo ao SolumAI</div>
             <h2 id="welcomeTitle">Olá! Que bom te ver por aqui 👋</h2>
             <p class="welcome-desc">
                 Este é seu <b>assistente inteligente da fazenda</b>. Ele ajuda você a cuidar
@@ -243,18 +276,27 @@
             <div class="welcome-privacy">🔒 No modo Local, seus dados ficam 100% nesta máquina. Nada vai para a internet.</div>
             <button class="welcome-btn" onclick="closeWelcome()">Entendi, vamos começar →</button>
             <button class="welcome-hide" onclick="hideWelcomeForever()">não mostrar novamente</button>
-            </div>
+            </div><!-- /.welcome-card-body -->
+            </div><!-- /.welcome-layout -->
         </div>
     </div>
     <script>
         (function () {
             var serverShow = {% if show_welcome %}true{% else %}false{% endif %};
             var hidden = false;
-            try { hidden = localStorage.getItem('hideAgroWelcome') === '1'; } catch (e) {}
-            function openWelcome() { document.getElementById('welcomeModal').classList.add('show'); }
-            window.closeWelcome = function () { document.getElementById('welcomeModal').classList.remove('show'); };
+            try { hidden = localStorage.getItem('hideSolumWelcome') === '1'; } catch (e) {}
+            function playWelcomeVideo() {
+                var v = document.getElementById('welcomeVideo');
+                if (v) { v.muted = true; var p = v.play(); if (p && p.catch) { p.catch(function () {}); } }
+            }
+            function pauseWelcomeVideo() {
+                var v = document.getElementById('welcomeVideo');
+                if (v) { try { v.pause(); } catch (e) {} }
+            }
+            function openWelcome() { document.getElementById('welcomeModal').classList.add('show'); playWelcomeVideo(); }
+            window.closeWelcome = function () { document.getElementById('welcomeModal').classList.remove('show'); pauseWelcomeVideo(); };
             window.hideWelcomeForever = function () {
-                try { localStorage.setItem('hideAgroWelcome', '1'); } catch (e) {}
+                try { localStorage.setItem('hideSolumWelcome', '1'); } catch (e) {}
                 window.closeWelcome();
             };
             document.getElementById('welcomeModal').addEventListener('click', function (e) {
@@ -344,6 +386,11 @@
                                     <option value="cpu" selected>CPU (Padrão, mais lento)</option>
                                     <option value="gpu">GPU (Rápido, exige VRAM)</option>
                                 </select>
+                                <div style="margin-top: 10px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; font-size: 12px; color: var(--text-muted); line-height: 1.65;">
+                                    <b style="color: var(--text);">💡 GPU e VRAM:</b> o modelo precisa caber <b>inteiro na VRAM</b> da placa (ex.: um 8B quantizado pede em torno de 5–6 GB livres). Se não couber, o carregamento falha ou fica muito lento — nesse caso use <b>CPU</b> ou um modelo menor/mais quantizado.<br>
+                                    <span style="color: #22c55e;">■ <b>NVIDIA:</b></span> aceleração plena via CUDA, com o melhor desempenho.<br>
+                                    <span style="color: #f59e0b;">■ <b>AMD:</b></span> no Windows o suporte é via Vulkan, com desempenho e compatibilidade mais limitados; se der erro, volte para CPU.
+                                </div>
                             </div>
 
                             <!-- Modelos -->
@@ -729,7 +776,7 @@
         </div>
     </div>
 
-    <script>window.AGROMIND_ICON_URL = "{% static 'model_ui/img/agromind.png' %}";</script>
+    <script>window.SOLUMAI_ICON_URL = "{% static 'model_ui/img/solumai.png' %}";</script>
     <script src="{% static 'model_ui/js/script.js' %}?v=18"></script>
     <script src="{% static 'model_ui/js/live.js' %}?v=24"></script>
 </body>

@@ -1,18 +1,19 @@
-# Assets — AgroMind AI 🌾🧠
+# Assets — SolumAI 🌾🧠
 
 Pasta fonte das artes oficiais do projeto. Arquivos oficiais (não apagar):
-- `logos/agromind.png` — **logo oficial** (marca AM + fundo transparente, 1288x1221)
-- `images/capa.png` — **capa oficial** (logo + "AgroMind AI" sobre fundo azul-marinho, ideal p/ og:image / hero)
-- `icons/` + `favicons/` — derivados gerados da logo oficial via PIL (resize com padding quadrado p/ não distorcer)
+- `logos/solumai.png` — **logo oficial** (letra S sobre fundo verde, 512x512)
+- `images/capa.png` — capa (logo + "SolumAI" sobre fundo azul-marinho, ideal p/ og:image / hero)
+- `icons/` + `favicons/` — derivados da logo oficial (gerados via `gen_icons.py`-like PIL); `favicon.svg` adapta ao tema claro/escuro via `prefers-color-scheme`
 
 ## Estrutura atual
 
 ```
 assets/
-├── icons/        # icon-192.png, icon-512.png, apple-touch-icon.png (fundo branco)
-├── logos/        # agromind.png (OFICIAL)
-├── favicons/     # favicon.ico (16/32/48), favicon-16x16.png, favicon-32x32.png
+├── icons/        # icon-192.png, icon-512.png, apple-touch-icon.png
+├── logos/        # solumai.png (OFICIAL)
+├── favicons/    # favicon.svg (adaptativo claro/escuro), favicon.ico (16/32/48), favicon-16x16.png, favicon-32x32.png
 ├── images/       # capa.png (OFICIAL), empty-state.svg (ilustração auxiliar)
+├── video.mp4     # vídeo institucional (modal inicial / welcome)
 ├── site.webmanifest
 └── README.md (este arquivo)
 ```
@@ -21,21 +22,35 @@ Destino usado pelo Django (servido via `{% static %}`) — espelho sincronizado:
 
 ```
 model_ui/static/model_ui/img/
-├── agromind.png / logo.png (cópias da logo oficial)
+├── solumai.png / logo.png (cópias da logo oficial)
 ├── capa.png
 ├── icon-192.png / icon-512.png / apple-touch-icon.png
 ├── favicon.ico / favicon-16x16.png / favicon-32x32.png
 └── site.webmanifest
+model_ui/static/model_ui/video/
+└── video.mp4 (cópia de assets/video.mp4 — usada no modal inicial)
 ```
+
+## Vídeo do modal inicial
+
+- Fonte: `assets/video.mp4`
+- Uso: `model_ui/templates/model_ui/index.html` — modal `#welcomeModal` (após login/senha),
+  lado a lado com as informações do sistema (`.welcome-layout` → `.welcome-media` + `.welcome-card-body`).
+- O vídeo roda junto com o modal (`autoplay muted loop playsinline`, com `controls`);
+  o JS dá `play()` ao abrir e `pause()` ao fechar.
+- Após trocar o arquivo em `assets/`, sincronize o espelho usado pelo Django:
+  ```powershell
+  Copy-Item assets\video.mp4 model_ui\static\model_ui\video\video.mp4 -Force
+  ```
 
 ## Como atualizar a logo no futuro
 
-1. Substitua `assets/logos/agromind.png` pelo novo arquivo (ideal: PNG quadrado, fundo transparente).
+1. Substitua `assets/logos/solumai.png` pelo novo arquivo (ideal: PNG quadrado, fundo transparente).
 2. Regenere os derivados (evita distorção — centraliza em canvas quadrado):
    ```powershell
    venv\Scripts\python.exe -c "
    from PIL import Image
-   src = Image.open('assets/logos/agromind.png')
+   src = Image.open('assets/logos/solumai.png')
    side = max(src.size)
    sq = Image.new('RGBA', (side, side), (0,0,0,0))
    sq.paste(src, ((side-src.width)//2, (side-src.height)//2), src)
@@ -49,8 +64,8 @@ model_ui/static/model_ui/img/
    ```
 3. Copie tudo para o static:
    ```powershell
-   Copy-Item assets\logos\agromind.png model_ui\static\model_ui\img\agromind.png -Force
-   Copy-Item assets\logos\agromind.png model_ui\static\model_ui\img\logo.png -Force
+   Copy-Item assets\logos\solumai.png model_ui\static\model_ui\img\solumai.png -Force
+   Copy-Item assets\logos\solumai.png model_ui\static\model_ui\img\logo.png -Force
    Copy-Item assets\images\capa.png model_ui\static\model_ui\img\capa.png -Force
    Copy-Item assets\icons\*.png model_ui\static\model_ui\img\ -Force
    Copy-Item assets\favicons\favicon* model_ui\static\model_ui\img\ -Force
@@ -65,7 +80,7 @@ model_ui/static/model_ui/img/
 <link rel="icon" type="image/png" sizes="32x32" href="{% static 'model_ui/img/favicon-32x32.png' %}">
 <link rel="apple-touch-icon" href="{% static 'model_ui/img/apple-touch-icon.png' %}">
 <link rel="manifest" href="{% static 'model_ui/img/site.webmanifest' %}">
-<img src="{% static 'model_ui/img/agromind.png' %}" alt="AgroMind AI" width="36" height="36">
+<img src="{% static 'model_ui/img/solumai.png' %}" alt="SolumAI" width="36" height="36">
 <meta property="og:image" content="{% static 'model_ui/img/capa.png' %}">
 ```
 

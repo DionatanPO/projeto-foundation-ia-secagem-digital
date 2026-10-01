@@ -1,5 +1,5 @@
 ================================================================================
-                      AGROMIND AI - APRESENTAÇÃO DO SISTEMA
+                      SOLUMAI - APRESENTAÇÃO DO SISTEMA
 ================================================================================
 
 Data de Apresentação: Setembro 2026
@@ -10,7 +10,7 @@ Plataforma: Windows / Linux / macOS
 1. VISÃO GERAL
 ================================================================================
 
-O AgroMind AI é uma solução de assistência técnica inteligente voltada
+O SolumAI é uma solução de assistência técnica inteligente voltada
 para o setor agrícola e industrial, com foco em:
 
   • Monitoramento de silos

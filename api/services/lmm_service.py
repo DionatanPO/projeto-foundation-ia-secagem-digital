@@ -169,7 +169,7 @@ class LMMService:
         self._model._chat_handlers['chat_template.default'] = formatter.to_chat_handler()
 
     DEFAULT_SYSTEM_PROMPT = (
-        "Você é o AgroMind AI, assistente especialista em agronomia, secagem, armazenamento e beneficiamento de grãos "
+        "Você é o SolumAI, assistente especialista em agronomia, secagem, armazenamento e beneficiamento de grãos "
         "(soja, milho, trigo, arroz, café, etc.), silos, umidade, temperatura, aeração, pré-limpeza e qualidade de grãos. "
         "Responda de forma técnica, objetiva e didática, usando seu conhecimento geral da área, mesmo quando o usuário "
         "não enviar dados ou documentos. "

@@ -11,7 +11,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 OPCODE_DEFAULT_SYSTEM_PROMPT = (
-    "Você é o AgroMind AI, assistente especialista em agronomia, secagem, armazenamento e beneficiamento de grãos "
+    "Você é o SolumAI, assistente especialista em agronomia, secagem, armazenamento e beneficiamento de grãos "
     "(soja, milho, trigo, arroz, café, etc.), silos, umidade, temperatura, aeração, pré-limpeza e qualidade de grãos. "
     "Responda de forma técnica, objetiva e didática, usando seu conhecimento geral da área, mesmo quando o usuário "
     "não enviar dados ou documentos. "
@@ -187,7 +187,7 @@ class RemoteLLMService:
     def _create_session(self):
         try:
             resp = requests.post(self._base() + "/session", json={
-                "title": "AgroMind AI"
+                "title": "SolumAI"
             }, timeout=10)
             if resp.status_code == 200:
                 data = resp.json()
