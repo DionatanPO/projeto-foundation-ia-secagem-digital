@@ -72,6 +72,20 @@
         </div>
 
         <div class="sidebar-footer">
+            <div class="user-row" title="{{ request.user.email|default:request.user.username }}"
+                style="padding: 10px 12px; font-size: 12px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                👤 {{ request.user.email|default:request.user.username }}
+            </div>
+            <a class="btn-settings" href="{% url 'logout' %}" style="text-decoration: none; display: flex;"
+                title="Sair da conta">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" width="18" height="18">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Sair
+            </a>
             <button class="btn-settings" onclick="toggleModal(true)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
@@ -256,7 +270,7 @@
             <div class="welcome-media">
                 <video id="welcomeVideo" src="{% static 'model_ui/video/introducao.mp4' %}"
                     poster="{% static 'model_ui/img/capa.png' %}"
-                    autoplay muted loop playsinline controls preload="auto"></video>
+                    autoplay loop playsinline controls preload="auto"></video>
                 <span class="welcome-media-badge"><span class="dot"></span> SolumAI em ação</span>
             </div>
             <div class="welcome-card-body">
@@ -287,7 +301,24 @@
             try { hidden = localStorage.getItem('hideSolumWelcome') === '1'; } catch (e) {}
             function playWelcomeVideo() {
                 var v = document.getElementById('welcomeVideo');
-                if (v) { v.muted = true; var p = v.play(); if (p && p.catch) { p.catch(function () {}); } }
+                if (!v) return;
+                // Tenta com som ligado; se o navegador bloquear autoplay com áudio,
+                // cai para mudo e libera o som no primeiro clique dentro do modal.
+                try { v.muted = false; v.volume = 1; } catch (e) {}
+                var p = null;
+                try { p = v.play(); } catch (e) {}
+                if (p && p.catch) {
+                    p.catch(function () {
+                        try { v.muted = true; v.play(); } catch (e2) {}
+                    });
+                }
+                var modal = document.getElementById('welcomeModal');
+                if (modal && !modal.dataset.unmuteArmed) {
+                    modal.dataset.unmuteArmed = '1';
+                    modal.addEventListener('pointerdown', function unmute() {
+                        try { v.muted = false; v.volume = 1; var q = v.play(); if (q && q.catch) { q.catch(function () {}); } } catch (e) {}
+                    });
+                }
             }
             function pauseWelcomeVideo() {
                 var v = document.getElementById('welcomeVideo');
@@ -776,6 +807,45 @@
         </div>
     </div>
 
+    <script>
+        // CSRF global: após o login real (Django auth), todo POST same-origin
+        // precisa do header X-CSRFToken. Este patch cobre todos os fetch()
+        // diretos (live.js, switch-model, RAG, etc.) sem editar cada chamada.
+        (function () {
+            function getCSRFToken() {
+                var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
+                return m ? decodeURIComponent(m[1]) : '';
+            }
+            window.getCSRFToken = window.getCSRFToken || getCSRFToken;
+            var origFetch = window.fetch.bind(window);
+            window.fetch = function (url, options) {
+                try {
+                    var u = typeof url === 'string' ? url : (url && url.url) || '';
+                    var sameOrigin = typeof u === 'string' &&
+                        (u.charAt(0) === '/' || u.indexOf(window.location.origin) === 0);
+                    if (sameOrigin) {
+                        options = options || {};
+                        var method = (options.method || 'GET').toUpperCase();
+                        if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && method !== 'TRACE') {
+                            if (!options.credentials) options.credentials = 'same-origin';
+                            var token = getCSRFToken();
+                            if (token) {
+                                if (options.headers instanceof Headers) {
+                                    if (!options.headers.has('X-CSRFToken')) options.headers.set('X-CSRFToken', token);
+                                } else {
+                                    options.headers = options.headers || {};
+                                    if (!options.headers['X-CSRFToken'] && !options.headers['x-csrftoken']) {
+                                        options.headers['X-CSRFToken'] = token;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {}
+                return origFetch(url, options);
+            };
+        })();
+    </script>
     <script>window.SOLUMAI_ICON_URL = "{% static 'model_ui/img/solumai.png' %}";</script>
     <script src="{% static 'model_ui/js/script.js' %}?v=18"></script>
     <script src="{% static 'model_ui/js/live.js' %}?v=24"></script>

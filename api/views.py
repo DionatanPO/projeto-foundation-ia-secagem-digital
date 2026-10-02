@@ -476,12 +476,13 @@ def _conv_to_detail(c):
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
 def conversations_list_create(request):
     from .models import Conversation
     from .serializers import ConversationCreateSerializer, ConversationListSerializer
 
     if request.method == 'GET':
-        convs = Conversation.objects.prefetch_related('messages').all()
+        convs = Conversation.objects.prefetch_related('messages').filter(user=request.user)
         data = [_conv_to_list(c) for c in convs]
         return Response(ConversationListSerializer(data, many=True).data)
 
@@ -489,17 +490,18 @@ def conversations_list_create(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     title = (serializer.validated_data.get('title') or '').strip() or 'Nova conversa'
-    conv = Conversation.objects.create(title=title[:255])
+    conv = Conversation.objects.create(user=request.user, title=title[:255])
     return Response(_conv_to_detail(conv), status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
 def conversation_detail(request, conv_id):
     from .models import Conversation
     from .serializers import ConversationUpdateSerializer
 
     try:
-        conv = Conversation.objects.prefetch_related('messages').get(id=conv_id)
+        conv = Conversation.objects.prefetch_related('messages').get(id=conv_id, user=request.user)
     except Conversation.DoesNotExist:
         return Response({"error": "Conversa não encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -519,12 +521,13 @@ def conversation_detail(request, conv_id):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def conversation_append_message(request, conv_id):
     from .models import Conversation, ChatMessage
     from .serializers import ChatMessageSerializer
 
     try:
-        conv = Conversation.objects.get(id=conv_id)
+        conv = Conversation.objects.get(id=conv_id, user=request.user)
     except Conversation.DoesNotExist:
         return Response({"error": "Conversa não encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -557,7 +560,8 @@ def conversation_append_message(request, conv_id):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def conversations_clear(request):
     from .models import Conversation
-    deleted, _ = Conversation.objects.all().delete()
+    deleted, _ = Conversation.objects.filter(user=request.user).delete()
     return Response({"status": "cleared", "deleted_objects": deleted})

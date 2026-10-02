@@ -602,7 +602,22 @@
                     {% csrf_token %}
 
                     <div class="field">
-                        <label for="app_key">Chave de acesso</label>
+                        <label for="email">E-mail</label>
+
+                        <div class="input">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="4" width="20" height="16" rx="2" />
+                                <path d="m22 7-10 6L2 7" />
+                            </svg>
+
+                            <input type="email" id="email" name="email" placeholder="voce@exemplo.com"
+                                autocomplete="email" autofocus required>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="password">Senha</label>
 
                         <div class="input">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -611,8 +626,8 @@
                                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                             </svg>
 
-                            <input type="password" id="app_key" name="app_key" placeholder="Digite sua chave..."
-                                autocomplete="current-password" autofocus required>
+                            <input type="password" id="password" name="password" placeholder="Digite sua senha..."
+                                autocomplete="current-password" required>
 
                             <button type="button" class="toggle-password" onclick="togglePassword()"
                                 aria-label="Mostrar senha">
@@ -661,7 +676,7 @@
 
     <script>
         function togglePassword() {
-            const input = document.getElementById('app_key');
+            const input = document.getElementById('password');
             const eye = document.getElementById('eye');
 
             if (input.type === 'password') {

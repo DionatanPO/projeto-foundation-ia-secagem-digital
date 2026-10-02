@@ -16,8 +16,9 @@ class ChatMessageInline(admin.TabularInline):
 
 @admin.register(Conversation)
 class ConversationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'created_at', 'updated_at')
-    search_fields = ('title',)
+    list_display = ('id', 'user', 'title', 'created_at', 'updated_at')
+    list_filter = ('user',)
+    search_fields = ('title', 'user__email', 'user__username')
     inlines = [ChatMessageInline]
 
 

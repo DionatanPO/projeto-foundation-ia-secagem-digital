@@ -101,11 +101,24 @@ function getConvMsgCount(conv) {
     return conv.message_count || 0;
 }
 
+function getCSRFToken() {
+    const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
+    return m ? decodeURIComponent(m[1]) : '';
+}
+
 async function apiJSON(url, options) {
+    const opts = options || {};
     const res = await fetch(url, {
-        headers: { 'Content-Type': 'application/json' },
-        ...(options || {}),
+        credentials: 'same-origin',
+        ...opts,
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken(), ...(opts.headers || {}) },
     });
+    if (res.status === 401 || res.status === 403) {
+        const isRead = !opts.method || opts.method.toUpperCase() === 'GET';
+        if (isRead && String(url).startsWith(CONV_API)) {
+            window.location.href = '/login/';
+        }
+    }
     if (!res.ok) {
         let detail = '';
         try { detail = await res.text(); } catch (e) {}
